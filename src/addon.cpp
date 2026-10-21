@@ -144,11 +144,8 @@ public:
                     std::vector<std::string> args{overridePath ? overridePath : KMOJI_UI_PATH, "--socket", path_};
                     if (config_.language.value() == UiLanguage::SimplifiedChinese) args.push_back("--lang=zh_CN");
                     else if (config_.language.value() == UiLanguage::English) args.push_back("--lang=en");
-                    if (config_.theme.value() == UiTheme::Light) args.push_back("--theme=light");
-                    else if (config_.theme.value() == UiTheme::Dark) args.push_back("--theme=dark");
-                    std::string accent = config_.accentColor.value().toString();
-                    if (accent.size() == 9 && accent[0] == '#') accent.resize(7);
-                    args.push_back("--accent=" + accent);
+                    if (!themeName().empty()) args.push_back("--theme=" + themeName());
+                    args.push_back("--accent=" + accentName());
                     std::string searchLanguages = "en";
                     for (const auto language : config_.searchLanguages.value())
                         searchLanguages += language == SearchLanguage::Chinese ? ",zh" : ",pinyin";
@@ -178,10 +175,37 @@ public:
         if (!path_.empty()) unlink(path_.c_str());
     }
 private:
-    void reloadConfig() override { fcitx::readAsIni(config_, "conf/kmoji.conf"); }
+    void reloadConfig() override {
+        fcitx::readAsIni(config_, "conf/kmoji.conf");
+        dropClient();
+    }
     const fcitx::Configuration *getConfig() const override { return &config_; }
     void setConfig(const fcitx::RawConfig &raw) override {
-        config_.load(raw, true); fcitx::safeSaveAsIni(config_, "conf/kmoji.conf");
+        config_.load(raw, true);
+        fcitx::safeSaveAsIni(config_, "conf/kmoji.conf");
+        dropClient();
+    }
+    std::string themeName() const {
+        if (config_.theme.value() == UiTheme::Light) return "light";
+        if (config_.theme.value() == UiTheme::Dark) return "dark";
+        return {};
+    }
+    std::string accentName() const {
+        std::string accent = config_.accentColor.value().toString();
+        if (accent.size() == 9 && accent[0] == '#') accent.resize(7);
+        return accent;
+    }
+    void dropClient() {
+        if (client_ < 0) return;
+        // Theme, accent, language and search settings are read when the UI
+        // process starts. Drop the idle process so the next open picks them up.
+        send("QUIT");
+        if (clientSource_) clientSource_->setEnabled(false);
+        close(client_);
+        client_ = -1;
+        active_ = false;
+        context_.unwatch();
+        buffer_.clear();
     }
     bool ensureServer() {
         if (server_ >= 0) return true;
