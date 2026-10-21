@@ -2,7 +2,7 @@
 pkgname=kmoji
 pkgver=@VERSION@
 pkgrel=1
-pkgdesc='Compact emoji picker for KDE Plasma with native Fcitx5 input'
+pkgdesc='Compact emoji and symbol picker for KDE Plasma with native Fcitx5 input'
 arch=('x86_64')
 url='https://github.com/wanoful/kmoji'
 license=('MIT' 'Unicode-3.0')

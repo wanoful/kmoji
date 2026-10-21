@@ -21,6 +21,7 @@ struct Emoji {
     int category;
     QStringList tones;
     QStringList words;
+    bool symbol = false;
 };
 
 struct Colors {
@@ -41,6 +42,7 @@ public:
     QStringList favorites, recents;
     int category = -1, tone = 0;
     QString query;
+    bool symbols = false;
 };
 
 class EmojiDelegate : public QStyledItemDelegate {
@@ -60,6 +62,7 @@ public:
     void connectToAddon(const QString &path);
     bool catalogueLoaded() const { return !model_.entries.isEmpty(); }
     void setPreviewQuery(const QString &query);
+    void setSymbolMode(bool symbols);
 protected:
     bool eventFilter(QObject *, QEvent *) override;
     void keyPressEvent(QKeyEvent *) override;
@@ -70,6 +73,7 @@ private:
     void applyTheme();
     void refresh();
     void selectCategory(int index);
+    void toggleSymbols();
     void selectTone(int tone);
     void toggleFavorite(int row);
     void choose(int row, bool collect = false);
@@ -92,10 +96,10 @@ private:
     QLabel *hoverName_ = nullptr;
     QLabel *heading_, *empty_, *collectionLabel_;
     QFrame *settingsPanel_, *tonePanel_, *collectionPanel_;
-    QToolButton *skinButton_;
+    QToolButton *skinButton_, *modeButton_;
     QPushButton *insert_;
     QCheckBox *continuous_;
-    QList<QPushButton *> categoryButtons_;
+    QList<QPushButton *> categoryButtons_, symbolButtons_;
     QList<QToolButton *> toneButtons_;
     QList<QPair<QString, QString>> collected_;
     QLocalSocket socket_;
@@ -107,5 +111,5 @@ private:
     QString theme_;
     int navIndex_ = 2;
     int hoveredRow_ = -1;
-    bool preview_ = false, session_ = false, shiftHeld_ = false;
+    bool preview_ = false, session_ = false, shiftHeld_ = false, symbols_ = false;
 };

@@ -21,9 +21,10 @@ int main(int argc, char **argv) {
     app.setApplicationDisplayName("kMoji");
     app.setQuitOnLastWindowClosed(false);
     QCommandLineParser parser;
-    parser.setApplicationDescription("kMoji — native Fcitx5 emoji picker");
+    parser.setApplicationDescription("kMoji — native Fcitx5 emoji and symbol picker");
     parser.addHelpOption();
     parser.addOptions({{"preview", "Open a standalone UI preview"},
+        {"symbols", "Preview the special symbols catalogue"},
         {"socket", "Connect to the Fcitx5 addon", "path"},
         {"data", "Override the emoji catalogue", "path"},
         {"screenshot", "Save a preview PNG and exit", "path"},
@@ -42,6 +43,7 @@ int main(int argc, char **argv) {
         return 1;
     }
     if (preview) {
+        if (parser.isSet("symbols")) picker.setSymbolMode(true);
         picker.show();
         picker.setPreviewQuery(parser.value("query"));
         if (parser.isSet("screenshot")) QTimer::singleShot(700, [&] {

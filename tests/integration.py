@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Exercise the real addon on a private D-Bus, never the user's input method."""
+import json
 import os
 import shutil
 import socket
@@ -12,6 +13,15 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 if "--session" not in sys.argv:
     sys.exit(subprocess.call(["dbus-run-session", "--", sys.executable, __file__, "--session"]))
+
+symbols = json.loads((ROOT / "data/symbols.json").read_text())
+assert len(symbols["categories"]) == 8
+assert len(symbols["entries"]) > 1000
+assert len({entry["text"] for entry in symbols["entries"]}) == len(symbols["entries"])
+assert {"©", "→", "€", "∑", "①"} <= {entry["text"] for entry in symbols["entries"]}
+for entry in symbols["entries"]:
+    assert 0 <= entry["category"] < 8 and entry["name"] and entry["english"] and entry["code"].startswith("U+")
+print("PASS: symbol catalogue shape and search metadata")
 
 from gi.repository import Gio, GLib
 
@@ -168,6 +178,47 @@ with tempfile.TemporaryDirectory(prefix="kmoji-test-") as tmp:
         saved = (root / "config/kmoji/kmoji.conf").read_text()
         assert "favorites=" in saved and "recents=" in saved
         print("PASS: favorite browsing and persistent history")
+
+        # Special symbols share the commit path but are plain text, not emoji.
+        assert key(b, ord("."), 60, 64)
+        pump(0.12)
+        assert key(b, ord("s"), 39, 5), "Symbol mode shortcut was not handled"
+        pump(0.12)
+        key(b, 0xff0d, 36)
+        pump(0.2)
+        assert commits[-1] == (b, "©"), commits[-1]
+        print("PASS: symbol catalogue inserts a text symbol")
+
+        assert key(b, ord("."), 60, 64)
+        pump(0.12)
+        key(b, ord("s"), 39, 5)
+        pump(0.12)
+        for ch in "U+2192": key(b, ord(ch), 0)
+        pump(0.15)
+        key(b, 0xff0d, 36)
+        pump(0.2)
+        assert commits[-1] == (b, "→"), commits[-1]
+        print("PASS: symbol search by U+ code point")
+
+        # Symbol favorites are separate from emoji but use the same tabs.
+        assert key(b, ord("."), 60, 64)
+        pump(0.12)
+        key(b, ord("s"), 39, 5)
+        pump(0.12)
+        key(b, ord("d"), 40, 4)  # Ctrl+D favorites the first common symbol
+        key(b, 0xff0d, 36)
+        pump(0.2)
+        assert commits[-1] == (b, "©"), commits[-1]
+        assert key(b, ord("."), 60, 64)
+        pump(0.12)
+        key(b, ord("s"), 39, 5)
+        pump(0.12)
+        key(b, 0xff09, 23, 1)  # Shift+Tab -> symbol favorites
+        pump(0.12)
+        key(b, 0xff0d, 36)
+        pump(0.2)
+        assert commits[-1] == (b, "©"), commits[-1]
+        print("PASS: symbol favorites and recent history")
         call(b, iface, "DestroyIC")
     except BaseException:
         log.flush(); log.seek(0)

@@ -5,7 +5,9 @@
 #include <QClipboard>
 #include <QCloseEvent>
 #include <QDateTime>
+#include <QDir>
 #include <QFile>
+#include <QFileInfo>
 #include <QFrame>
 #include <QHBoxLayout>
 #include <QHideEvent>
@@ -30,6 +32,8 @@
 
 namespace {
 const QStringList navNames = {"最近使用", "我的收藏", "全部表情", "笑脸与情感", "人物与手势", "动物与自然", "食物与饮品", "旅行与地点", "活动与运动", "物品与工具", "符号", "旗帜"};
+const QStringList symbolNames = {"最近使用", "我的收藏", "常用符号", "标点符号", "货币符号", "数学符号", "箭头符号", "几何图形", "字母与数字", "其他符号"};
+const QStringList symbolMarks = {"↺", "♥", "©", "…", "€", "∑", "→", "◇", "①", "☺"};
 const QStringList toneColors = {"#ffd166", "#f8dfc6", "#eac39b", "#c89460", "#966747", "#614337"};
 QPixmap categoryIcon(int category, const QColor &color) {
     QPixmap image(36, 36); image.setDevicePixelRatio(2); image.fill(Qt::transparent);
@@ -95,6 +99,29 @@ QPixmap categoryIcon(int category, const QColor &color) {
     return image;
 }
 QString folded(QString text) { return text.normalized(QString::NormalizationForm_KC).toCaseFolded(); }
+void loadEntries(const QString &path, bool symbols, QList<Emoji> &entries) {
+    QFile file(path);
+    if (!file.open(QIODevice::ReadOnly)) return;
+    for (const auto &value : QJsonDocument::fromJson(file.readAll()).object()["entries"].toArray()) {
+        const auto o = value.toObject();
+        Emoji e{o["text"].toString(), o["name"].toString(), o["english"].toString(), {}, o["category"].toInt(), {}, {}};
+        e.symbol = symbols;
+        if (symbols) {
+            const auto code = o["code"].toString();
+            e.search = folded(e.text+" "+e.name+" "+e.english+" "+o["keywords"].toString()+" "+o["pinyin"].toString()+" "+code);
+            for (const auto &alias : o["aliases"].toArray())
+                e.words.append(folded(alias.toString()).split(QRegularExpression("[\\s\\p{P}]+"), Qt::SkipEmptyParts));
+            const auto hex = code.mid(2);
+            if (!hex.isEmpty()) e.words.append(hex);
+        } else {
+            e.search = folded(e.text+" "+o["keywords"].toString()+" "+o["pinyin"].toString());
+            for (const auto &tone : o["tones"].toArray()) e.tones.append(tone.toString());
+            for (const auto &alias : o["aliases"].toArray())
+                e.words.append(folded(alias.toString()).split(QRegularExpression("[\\s\\p{P}]+"), Qt::SkipEmptyParts));
+        }
+        entries.append(e);
+    }
+}
 }
 
 QVariant EmojiModel::data(const QModelIndex &index, int role) const {
@@ -118,13 +145,23 @@ bool EmojiModel::favorite(int row) const {
 void EmojiModel::refresh() {
     beginResetModel(); visible.clear();
     const auto terms = folded(query.trimmed()).split(QRegularExpression("\\s+"), Qt::SkipEmptyParts);
+    // Symbols are searched across every symbol tab, emoji stay in the current tab.
+    const bool searchAllSymbols = symbols && !terms.empty();
     for (int i = 0; i < entries.size(); ++i) {
         const auto &e = entries[i];
-        if (category == -2 && !recents.contains(e.text)) continue;
-        if (category == -3 && !favorites.contains(e.text)) continue;
-        if (category >= 0 && category != e.category) continue;
+        if (e.symbol != symbols) continue;
+        if (!searchAllSymbols) {
+            if (category == -2 && !recents.contains(e.text)) continue;
+            if (category == -3 && !favorites.contains(e.text)) continue;
+            if (category >= 0 && category != e.category) continue;
+        }
         bool matches = true;
-        for (const auto &term : terms) {
+        for (const auto &raw : terms) {
+            // Accept identifiers copied straight from a Unicode table.
+            auto term = raw;
+            if (term.startsWith("u+")) term = term.mid(2);
+            else if (term.startsWith("0x")) term = term.mid(2);
+            if (term.isEmpty()) continue;
             const bool ascii = std::all_of(term.begin(), term.end(), [](QChar c) { return c.unicode() < 128; });
             const bool found = ascii ? std::any_of(e.words.begin(), e.words.end(), [&](const QString &word) { return word.startsWith(term); }) : e.search.contains(term);
             if (!found) { matches = false; break; }
@@ -155,7 +192,8 @@ void EmojiDelegate::paint(QPainter *p, const QStyleOptionViewItem &opt, const QM
     } else if (opt.state & QStyle::State_MouseOver) {
         p->setBrush(colors.hover); p->setPen(Qt::NoPen); p->drawRoundedRect(tile, 8, 8);
     }
-    QFont font("Noto Color Emoji"); font.setPixelSize(27);
+    QFont font = model_->symbols ? QApplication::font() : QFont("Noto Color Emoji");
+    font.setPixelSize(model_->symbols ? 21 : 27);
     p->setFont(font); p->setPen(colors.text);
     p->drawText(opt.rect.adjusted(0, -1, 0, -1), Qt::AlignCenter, model_->glyph(index.row()));
     if (model_->favorite(index.row())) {
@@ -173,17 +211,9 @@ Picker::Picker(const QString &dataPath, bool preview) : QWidget(nullptr), settin
         setFocusPolicy(Qt::NoFocus);
     }
     setFixedSize(376, 420);
-    QFile file(dataPath);
-    if (file.open(QIODevice::ReadOnly)) {
-        for (const auto &value : QJsonDocument::fromJson(file.readAll()).object()["entries"].toArray()) {
-            const auto o = value.toObject();
-            Emoji e{o["text"].toString(), o["name"].toString(), o["english"].toString(), {}, o["category"].toInt(), {}, {}};
-            e.search = folded(e.text+" "+o["keywords"].toString()+" "+o["pinyin"].toString());
-            for (const auto &tone : o["tones"].toArray()) e.tones.append(tone.toString());
-            for (const auto &alias : o["aliases"].toArray()) e.words.append(folded(alias.toString()).split(QRegularExpression("[\\s\\p{P}]+"), Qt::SkipEmptyParts));
-            model_.entries.append(e);
-        }
-    }
+    const QFileInfo info(dataPath);
+    loadEntries(dataPath, false, model_.entries);
+    loadEntries(info.dir().filePath("symbols.json"), true, model_.entries);
     model_.favorites = settings_.value("favorites").toStringList();
     model_.recents = settings_.value("recents").toStringList();
     model_.tone = std::clamp(settings_.value("tone", 0).toInt(), 0, 5);
@@ -252,11 +282,22 @@ void Picker::buildUi() {
     auto *section = new QHBoxLayout; section->setSpacing(6);
     heading_ = new QLabel; heading_->setObjectName("heading");
     section->addWidget(heading_); section->addStretch();
+    modeButton_ = new QToolButton;
+    modeButton_->setObjectName("modeButton"); modeButton_->setText("Ω");
+    modeButton_->setCheckable(true);
+    modeButton_->setFixedSize(32, 26); modeButton_->setFocusPolicy(Qt::NoFocus);
+    modeButton_->setToolTip("特殊符号 · Ctrl+Shift+S"); modeButton_->setAccessibleName("特殊符号");
+    connect(modeButton_, &QToolButton::clicked, this, &Picker::toggleSymbols);
+    const bool hasSymbols = std::any_of(model_.entries.cbegin(), model_.entries.cend(),
+                                        [](const Emoji &entry) { return entry.symbol; });
+    modeButton_->setEnabled(hasSymbols);
+    if (!hasSymbols) modeButton_->setToolTip("未找到符号数据");
     skinButton_ = new QToolButton;
     skinButton_->setObjectName("skinButton"); skinButton_->setFixedSize(28, 26);
     skinButton_->setCheckable(true); skinButton_->setToolTip("选择肤色");
     skinButton_->setAccessibleName("选择肤色");
-    section->addWidget(skinButton_); root->addLayout(section);
+    section->addWidget(skinButton_); section->addWidget(modeButton_);
+    root->addLayout(section);
 
     tonePanel_ = new QFrame; tonePanel_->setObjectName("options");
     auto *tones = new QHBoxLayout(tonePanel_); tones->setContentsMargins(8, 4, 8, 4);
@@ -308,6 +349,7 @@ void Picker::buildUi() {
     auto *categories = new QFrame; categories->setObjectName("categories");
     auto *nav = new QHBoxLayout(categories);
     nav->setContentsMargins(0, 5, 0, 0); nav->setSpacing(1);
+    nav->addStretch(1);
     for (int i = 0; i < navNames.size(); ++i) {
         auto *button = new QPushButton;
         button->setObjectName("category"); button->setCheckable(true);
@@ -317,6 +359,17 @@ void Picker::buildUi() {
         categoryButtons_.append(button); nav->addWidget(button);
         connect(button, &QPushButton::clicked, this, [this, i] { selectCategory(i); });
     }
+    for (int i = 0; i < symbolNames.size(); ++i) {
+        auto *button = new QPushButton(symbolMarks[i]);
+        button->setObjectName("category"); button->setCheckable(true);
+        button->setProperty("symbolNav", true);
+        button->setFixedSize(34, 30);
+        button->setToolTip(symbolNames[i]); button->setAccessibleName(symbolNames[i]);
+        button->setFocusPolicy(Qt::NoFocus); button->hide();
+        symbolButtons_.append(button); nav->addWidget(button);
+        connect(button, &QPushButton::clicked, this, [this, i] { selectCategory(i); });
+    }
+    nav->addStretch(1);
     root->addWidget(categories);
     // A child overlay also works while the Wayland window remains unfocused.
     hoverName_ = new QLabel(this); hoverName_->setObjectName("emojiName");
@@ -344,12 +397,14 @@ void Picker::applyTheme() {
       QFrame#categories { border-top:1px solid %4; }
       QPushButton#category { background:transparent; border:0; border-bottom:2px solid transparent; border-radius:0; }
       QPushButton#category:hover { background:%9; border-radius:5px; }
-      QPushButton#category:checked { border-bottom-color:%7; }
+      QPushButton#category:checked { border-bottom-color:%7; color:%7; }
+      QPushButton#category[symbolNav="true"] { font-size:17px; padding-bottom:1px; }
       QToolButton { background:transparent; border:0; border-radius:5px; padding:3px; color:%6; }
       QToolButton:hover { background:%9; color:%5; }
       QToolButton:checked { background:%8; color:%7; }
       QToolButton#settingsButton { font-size:19px; font-weight:600; }
       QToolButton#skinButton { font-family:"Noto Color Emoji"; font-size:17px; padding:0; }
+      QToolButton#modeButton { font-family:"Noto Sans","sans-serif"; font-size:17px; font-weight:600; padding:0; }
       QFrame#options, QFrame#collection { background:%3; border:0; border-radius:7px; }
       QCheckBox { spacing:6px; font-size:11px; }
       QCheckBox::indicator { width:12px; height:12px; border:1px solid %6; border-radius:3px; background:%1; }
@@ -384,11 +439,33 @@ void Picker::applyTheme() {
 }
 
 void Picker::selectCategory(int index) {
-    navIndex_ = (index+navNames.size()) % navNames.size();
-    for (int i = 0; i < categoryButtons_.size(); ++i) categoryButtons_[i]->setChecked(i == navIndex_);
-    model_.category = navIndex_ == 0 ? -2 : navIndex_ == 1 ? -3 : navIndex_ == 2 ? -1 : navIndex_-3;
+    if (symbols_) {
+        navIndex_ = (index+symbolNames.size()) % symbolNames.size();
+        for (int i = 0; i < symbolButtons_.size(); ++i) symbolButtons_[i]->setChecked(i == navIndex_);
+        model_.category = navIndex_ == 0 ? -2 : navIndex_ == 1 ? -3 : navIndex_-2;
+    } else {
+        navIndex_ = (index+navNames.size()) % navNames.size();
+        for (int i = 0; i < categoryButtons_.size(); ++i) categoryButtons_[i]->setChecked(i == navIndex_);
+        model_.category = navIndex_ == 0 ? -2 : navIndex_ == 1 ? -3 : navIndex_ == 2 ? -1 : navIndex_-3;
+    }
     refresh();
 }
+void Picker::setSymbolMode(bool symbols) {
+    symbols_ = symbols; model_.symbols = symbols;
+    modeButton_->setChecked(symbols);
+    modeButton_->setToolTip(symbols ? "返回表情 · Ctrl+Shift+S" : "特殊符号 · Ctrl+Shift+S");
+    modeButton_->setAccessibleName(symbols ? "返回表情" : "特殊符号");
+    skinButton_->setVisible(!symbols);
+    if (symbols) { skinButton_->setChecked(false); tonePanel_->hide(); }
+    for (auto *button : categoryButtons_) button->setVisible(!symbols);
+    for (auto *button : symbolButtons_) button->setVisible(symbols);
+    search_->clear();
+    search_->setPlaceholderText(symbols ? "搜索符号" : "搜索表情");
+    search_->setAccessibleName(symbols ? "搜索符号，支持中文、英文或编码" : "搜索表情，支持英文和拼音");
+    search_->setToolTip(symbols ? "支持中文、英文名称或编码，例如“箭头”“2192”" : "支持英文、拼音，或 Ctrl+V 粘贴中文");
+    selectCategory(2);
+}
+void Picker::toggleSymbols() { setSymbolMode(!symbols_); }
 void Picker::selectTone(int tone) {
     model_.tone = tone; settings_.setValue("tone", tone);
     for (int i = 0; i < toneButtons_.size(); ++i) toneButtons_[i]->setChecked(i == tone);
@@ -399,10 +476,14 @@ void Picker::selectTone(int tone) {
 void Picker::refresh() {
     hideHoverName();
     debounce_.stop(); model_.query = search_->text(); model_.refresh();
-    heading_->setText(search_->text().isEmpty() ? navNames[navIndex_] : "搜索结果");
+    const auto &names = symbols_ ? symbolNames : navNames;
+    heading_->setText(search_->text().isEmpty() ? names[navIndex_] : "搜索结果");
     grid_->setCurrentIndex(model_.index(0)); grid_->scrollToTop();
     empty_->setGeometry(grid_->viewport()->rect().adjusted(25, 0, -25, 0));
-    empty_->setText(!search_->text().isEmpty() ? "没有找到对应的表情\n试试其他关键词，或切换到全部表情" : navIndex_ == 1 ? "把喜欢的表情收在这里\n右键点击任意表情即可收藏" : "这里还没有最近使用的表情\n选一个表情，开始表达吧");
+    if (symbols_) empty_->setText(!search_->text().isEmpty() ? "没有找到对应的符号\n试试“箭头”“货币”“数学”等关键词"
+        : navIndex_ == 0 ? "这里还没有最近使用的符号\n选一个符号，开始使用吧"
+        : navIndex_ == 1 ? "把喜欢的符号收在这里\n右键点击任意符号即可收藏" : "这里还没有可用的符号");
+    else empty_->setText(!search_->text().isEmpty() ? "没有找到对应的表情\n试试其他关键词，或切换到全部表情" : navIndex_ == 1 ? "把喜欢的表情收在这里\n右键点击任意表情即可收藏" : "这里还没有最近使用的表情\n选一个表情，开始表达吧");
     empty_->setVisible(model_.visible.isEmpty());
 }
 void Picker::toggleFavorite(int row) {
@@ -454,6 +535,7 @@ void Picker::handleKey(int sym, int states, const QString &text) {
     const bool ctrl = states & 4, shift = states & 1, alt = states & 8, super = states & 64;
     const int columns = std::max(1, grid_->viewport()->width()/grid_->gridSize().width());
     if (sym == 0xff1b) { cancel(); return; }
+    if (ctrl && shift && (sym == 's' || sym == 'S')) { toggleSymbols(); return; }
     if (alt && (sym == 0xff51 || sym == 0xff53)) { selectCategory(navIndex_+(sym == 0xff51 ? -1 : 1)); return; }
     if (sym == 0xff09 || sym == 0xfe20) { selectCategory(navIndex_+(shift ? -1 : 1)); return; }
     if (sym == 0xff0d || sym == 0xff8d) {
@@ -543,6 +625,9 @@ bool Picker::eventFilter(QObject *object, QEvent *event) {
             case Qt::Key_Up: sym=0xff52; break;
             case Qt::Key_Down: sym=0xff54; break;
             case Qt::Key_Tab: sym=0xff09; break;
+            case Qt::Key_S:
+                if (key->modifiers() & Qt::ControlModifier) sym = 'S';
+                break;
             default: break;
         }
         if (sym) {
@@ -566,7 +651,9 @@ void Picker::connectToAddon(const QString &path) { socket_.connectToServer(path)
 void Picker::send(const QByteArray &line) { socket_.write(line+'\n'); socket_.flush(); }
 void Picker::setPreviewQuery(const QString &query) { search_->setText(query); refresh(); if (preview_) search_->setFocus(); }
 void Picker::openSession(const QByteArray &token) {
-    token_ = token; session_ = true; shiftHeld_ = false; collected_.clear(); search_->clear(); selectCategory(2); updateCollection();
+    token_ = token; session_ = true; shiftHeld_ = false; collected_.clear();
+    if (symbols_) setSymbolMode(false);
+    search_->clear(); selectCategory(2); updateCollection();
     findChild<QToolButton *>("settingsButton")->setChecked(false);
     skinButton_->setChecked(false);
     // KWin positions Wayland windows. X11 previews can be centered directly.
