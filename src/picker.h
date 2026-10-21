@@ -1,0 +1,102 @@
+// SPDX-License-Identifier: MIT
+#pragma once
+#include <QAbstractListModel>
+#include <QColor>
+#include <QListView>
+#include <QLocalSocket>
+#include <QSettings>
+#include <QStyledItemDelegate>
+#include <QTimer>
+#include <QWidget>
+
+class QLineEdit;
+class QLabel;
+class QPushButton;
+class QCheckBox;
+class QToolButton;
+
+struct Emoji {
+    QString text, name, english, search;
+    int category;
+    QStringList tones;
+    QStringList words;
+};
+
+struct Colors {
+    QColor background, surface, sidebar, border, text, muted, accent, selected, hover;
+};
+
+class EmojiModel : public QAbstractListModel {
+public:
+    explicit EmojiModel(QObject *parent = nullptr) : QAbstractListModel(parent) {}
+    int rowCount(const QModelIndex & = {}) const override { return visible.size(); }
+    QVariant data(const QModelIndex &index, int role) const override;
+    void refresh();
+    QString glyph(int row) const;
+    const Emoji *entry(int row) const;
+    bool favorite(int row) const;
+    QList<Emoji> entries;
+    QList<int> visible;
+    QStringList favorites, recents;
+    int category = -1, tone = 0;
+    QString query;
+};
+
+class EmojiDelegate : public QStyledItemDelegate {
+public:
+    explicit EmojiDelegate(EmojiModel *model, QObject *parent = nullptr) : QStyledItemDelegate(parent), model_(model) {}
+    void paint(QPainter *, const QStyleOptionViewItem &, const QModelIndex &) const override;
+    QSize sizeHint(const QStyleOptionViewItem &, const QModelIndex &) const override { return {52, 52}; }
+    Colors colors;
+private:
+    EmojiModel *model_;
+};
+
+class Picker : public QWidget {
+    Q_OBJECT
+public:
+    explicit Picker(const QString &dataPath, bool preview = false);
+    void connectToAddon(const QString &path);
+    bool catalogueLoaded() const { return !model_.entries.isEmpty(); }
+    void setPreviewQuery(const QString &query);
+protected:
+    bool eventFilter(QObject *, QEvent *) override;
+    void keyPressEvent(QKeyEvent *) override;
+    void closeEvent(QCloseEvent *) override;
+private:
+    void buildUi();
+    void applyTheme();
+    void refresh();
+    void selectCategory(int index);
+    void selectTone(int tone);
+    void toggleFavorite(int row);
+    void choose(int row, bool collect = false);
+    void commit();
+    void cancel();
+    void updateCollection();
+    void saveHistory();
+    void moveSelection(int delta);
+    void handleKey(int sym, int states, const QString &text);
+    void receive(const QByteArray &line);
+    void send(const QByteArray &line);
+    void openSession(const QByteArray &token);
+    void updateDetails();
+    EmojiModel model_;
+    EmojiDelegate *delegate_ = nullptr;
+    QListView *grid_ = nullptr;
+    QLineEdit *search_ = nullptr;
+    QLabel *heading_, *count_, *details_, *empty_, *collectionLabel_, *status_;
+    QPushButton *insert_;
+    QCheckBox *continuous_;
+    QList<QPushButton *> categoryButtons_;
+    QList<QToolButton *> toneButtons_;
+    QList<QPair<QString, QString>> collected_;
+    QLocalSocket socket_;
+    QSettings settings_;
+    QTimer debounce_;
+    QByteArray input_, token_;
+    Colors colors_;
+    QString theme_;
+    int navIndex_ = 2;
+    bool preview_ = false, session_ = false, shiftHeld_ = false;
+};
