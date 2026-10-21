@@ -1,0 +1,26 @@
+# Maintainer: wanoful <https://github.com/wanoful>
+pkgname=kmoji
+pkgver=@VERSION@
+pkgrel=1
+pkgdesc='Compact emoji picker for KDE Plasma with native Fcitx5 input'
+arch=('x86_64')
+url='https://github.com/wanoful/kmoji'
+license=('MIT' 'Unicode-3.0')
+depends=('fcitx5' 'qt6-base' 'qt6-wayland' 'kwin' 'python' 'python-gobject' 'qt6-tools' 'systemd' 'gcc-libs' 'glibc')
+makedepends=('cmake' 'ninja')
+optdepends=('noto-fonts-emoji: color emoji font')
+source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
+sha256sums=('@SHA256@')
+
+build() {
+  cmake -S "$pkgname-$pkgver" -B build -G Ninja \
+    -DCMAKE_BUILD_TYPE=None \
+    -DCMAKE_INSTALL_PREFIX=/usr \
+    -DCMAKE_INSTALL_LIBDIR=lib \
+    -DKMOJI_BUILD_DESKTOP_SMOKE=OFF
+  cmake --build build
+}
+
+package() {
+  DESTDIR="$pkgdir" cmake --install build
+}

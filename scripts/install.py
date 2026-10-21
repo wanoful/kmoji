@@ -58,27 +58,35 @@ def rule():
 
 
 parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument("--configure-only", action="store_true", help="Activate an existing system installation without building or copying files")
 parser.add_argument("--activate", action="store_true", help="Configure KWin, disable the previous picker, and restart Fcitx5")
 args = parser.parse_args()
-if not (ROOT / "data/emoji.json").exists():
-    run("python", str(ROOT / "scripts/generate-data.py"))
-run("cmake", "-S", str(ROOT), "-B", str(ROOT / "build"), "-G", "Ninja", "-DCMAKE_BUILD_TYPE=RelWithDebInfo",
-    f"-DCMAKE_INSTALL_PREFIX={PREFIX}", "-DCMAKE_INSTALL_LIBDIR=lib")
-run("cmake", "--build", str(ROOT / "build"), "-j", "4")
-files = [PREFIX / "bin/kmoji", PREFIX / "lib/fcitx5/libkmoji.so", PREFIX / "share/fcitx5/addon/kmoji.conf",
-         PREFIX / "share/kmoji/emoji.json", PREFIX / "share/kmoji/UNICODE-LICENSE.txt"]
+if args.configure_only and not args.activate:
+    parser.error("--configure-only requires --activate")
+files = []
+if not args.configure_only:
+    if not (ROOT / "data/emoji.json").exists():
+        run("python", str(ROOT / "scripts/generate-data.py"))
+    run("cmake", "-S", str(ROOT), "-B", str(ROOT / "build"), "-G", "Ninja", "-DCMAKE_BUILD_TYPE=RelWithDebInfo",
+        f"-DCMAKE_INSTALL_PREFIX={PREFIX}", "-DCMAKE_INSTALL_LIBDIR=lib")
+    run("cmake", "--build", str(ROOT / "build"), "-j", "4")
+    files = [PREFIX / "bin/kmoji", PREFIX / "lib/fcitx5/libkmoji.so", PREFIX / "share/fcitx5/addon/kmoji.conf",
+             PREFIX / "share/kmoji/emoji.json", PREFIX / "share/kmoji/UNICODE-LICENSE.txt",
+             PREFIX / "bin/kmoji-setup", PREFIX / "share/kmoji/install.py", PREFIX / "share/kmoji/restore.py",
+             PREFIX / "share/licenses/kmoji/LICENSE", PREFIX / "share/licenses/kmoji/UNICODE-LICENSE.txt"]
 paths = files + [CONFIG / "kwinrulesrc", CONFIG / "fcitx5/config", CONFIG / "fcitx5/conf/kmoji.conf"]
 if args.activate:
     run("qdbus6", "org.fcitx.Fcitx5", "/controller", "org.fcitx.Fcitx.Controller1.Save")
 backup_dir = backup(paths)
-with tempfile.TemporaryDirectory(prefix="kmoji-install-") as stage:
-    run("cmake", "--install", str(ROOT / "build"), env={**os.environ, "DESTDIR": stage})
-    for path in files:
-        source = Path(stage) / str(path).lstrip("/")
-        path.parent.mkdir(parents=True, exist_ok=True)
-        temporary = path.with_name(path.name + ".new")
-        shutil.copy2(source, temporary)
-        os.replace(temporary, path)
+if not args.configure_only:
+    with tempfile.TemporaryDirectory(prefix="kmoji-install-") as stage:
+        run("cmake", "--install", str(ROOT / "build"), env={**os.environ, "DESTDIR": stage})
+        for path in files:
+            source = Path(stage) / str(path).lstrip("/")
+            path.parent.mkdir(parents=True, exist_ok=True)
+            temporary = path.with_name(path.name + ".new")
+            shutil.copy2(source, temporary)
+            os.replace(temporary, path)
 
 if args.activate:
     rule()

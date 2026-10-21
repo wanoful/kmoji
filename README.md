@@ -37,7 +37,7 @@
 | 更多选项中的“外观” | 依次切换浅色、深色、跟随系统 |
 | 分类标题旁的手掌图标 | 展开肤色选择 |
 
-搜索默认在左侧当前分类内进行。需要搜索全部 emoji 时选择“全部表情”。
+搜索默认在当前分类内进行。需要搜索全部 emoji 时选择“全部表情”。
 最近使用的记录保存基础 emoji，展示与插入时使用当前选择的肤色。
 
 ## 构建与预览
@@ -56,6 +56,22 @@ cmake --build build -j4
 源码附带离线数据，无须在构建或使用时访问网络。
 
 ## 安装与启用
+
+### Arch Linux 系统安装
+
+在 [Releases](https://github.com/wanoful/kmoji/releases) 下载 `.pkg.tar.zst` 包后：
+
+```sh
+sudo pacman -U ./kmoji-*.pkg.tar.zst
+# 在 KDE 桌面中以普通用户运行，添加窗口规则、释放快捷键并重启 Fcitx5
+kmoji-setup
+```
+
+启用命令会先备份用户配置，不要使用 sudo 运行。系统包本身不会修改用户配置。
+已通过下方脚本安装用户版时，`~/.local` 中的旧插件会优先于系统版加载；请先使用
+相应安装备份恢复用户版，再安装系统包。AUR 维护步骤见 [发布说明](docs/publishing.md)。
+
+### 从源码安装到用户目录
 
 安装脚本额外需要 Python、PyGObject、`busctl` 和 KDE 的 `qdbus6`。只安装到当前用户的
 `~/.local`，不需要 sudo。安装前备份文件到 `~/.local/state/kmoji/backup-*`。

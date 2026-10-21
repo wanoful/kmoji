@@ -1,0 +1,2 @@
+#!/bin/sh
+exec python3 "@CMAKE_INSTALL_FULL_DATADIR@/kmoji/install.py" --configure-only --activate "$@"
