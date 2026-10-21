@@ -33,7 +33,17 @@ def cli_help(locale):
 
 assert "用法" in cli_help("zh_CN.UTF-8")
 assert "Usage" in cli_help("en_US.UTF-8")
-print("PASS: Chinese translations load and English is the fallback")
+
+
+def forced_help():
+    env = {**os.environ, "QT_QPA_PLATFORM": "offscreen", "LANG": "en_US.UTF-8",
+           "LANGUAGE": "en", "LC_ALL": "en_US.UTF-8"}
+    return subprocess.run([str(ROOT / "build/kmoji"), "--lang=zh_CN", "--help"], env=env,
+                          capture_output=True, text=True, timeout=20, check=True).stdout
+
+
+assert "用法" in forced_help()
+print("PASS: Chinese translations load, English falls back, --lang overrides the locale")
 
 from gi.repository import Gio, GLib
 

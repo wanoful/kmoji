@@ -66,21 +66,28 @@ for text, english, category, subgroup in rows:
     z = zh.get(key, {})
     e = en.get(key, {})
     name = z.get("tts", [english])[0]
-    keywords = list(dict.fromkeys([english, *e.get("default", []), name, *z.get("default", []), subgroup]))
+    english_aliases = list(dict.fromkeys([english, *e.get("default", []), subgroup]))
+    chinese_aliases = list(dict.fromkeys([name, *z.get("default", [])]))
+    keywords = list(dict.fromkeys([*english_aliases, *chinese_aliases]))
     variants = [text]
     for tone in tones:
         variants.append(next((v for v in by_base[key] if tone in v and all(t not in v for t in tones if t != tone)), text))
-    entries.append(dict(text=text, name=name, english=english, category=category, keywords=" ".join(keywords), aliases=keywords, tones=variants))
+    entries.append(dict(text=text, name=name, english=english, category=category,
+                        keywords=" ".join(keywords), aliases=keywords,
+                        english_aliases=english_aliases, chinese_aliases=chinese_aliases,
+                        tones=variants))
 
 # ICU transliteration provides offline pinyin search without a runtime dependency.
-all_aliases = [alias for e in entries for alias in e["aliases"]]
-chinese = "\n".join(all_aliases)
+all_chinese = [alias for e in entries for alias in e["chinese_aliases"]]
+chinese = "\n".join(all_chinese)
 result = subprocess.run(["uconv", "-x", "Han-Latin; Latin-ASCII; Lower()"], input=chinese, text=True, capture_output=True, check=True)
 romanized = iter(result.stdout.splitlines())
 for entry in entries:
-    pinyin_aliases = [next(romanized) for _ in entry["aliases"]]
+    pinyin_aliases = [next(romanized) for _ in entry["chinese_aliases"]]
     entry["pinyin"] = " ".join(pinyin_aliases)
-    entry["aliases"] = list(dict.fromkeys([*entry["aliases"], *(re.sub(r"\s+", "", alias) for alias in pinyin_aliases)]))
+    entry["pinyin_aliases"] = list(dict.fromkeys(
+        [*pinyin_aliases, *(re.sub(r"\s+", "", alias) for alias in pinyin_aliases)]))
+    entry["aliases"] = list(dict.fromkeys([*entry["aliases"], *entry["pinyin_aliases"]]))
 
 catalogue = {"unicode": "17.0", "cldr": "48.0.0", "entries": entries}
 (ROOT / "data/emoji.json").write_text(json.dumps(catalogue, ensure_ascii=False, separators=(",", ":")) + "\n")

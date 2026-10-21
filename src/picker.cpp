@@ -97,12 +97,15 @@ QPixmap categoryIcon(int category, const QColor &color) {
     return image;
 }
 QString folded(QString text) { return text.normalized(QString::NormalizationForm_KC).toCaseFolded(); }
+QStringList splitWords(const QString &text) {
+    return folded(text).split(QRegularExpression("[\\s\\p{P}]+"), Qt::SkipEmptyParts);
+}
 void loadEntries(const QString &path, bool symbols, QList<Emoji> &entries) {
     QFile file(path);
     if (!file.open(QIODevice::ReadOnly)) return;
     for (const auto &value : QJsonDocument::fromJson(file.readAll()).object()["entries"].toArray()) {
         const auto o = value.toObject();
-        Emoji e{o["text"].toString(), o["name"].toString(), o["english"].toString(), {}, o["category"].toInt(), {}, {}};
+        Emoji e{o["text"].toString(), o["name"].toString(), o["english"].toString(), {}, o["category"].toInt(), {}, {}, {}, {}, {}};
         e.symbol = symbols;
         if (symbols) {
             const auto code = o["code"].toString();
@@ -116,6 +119,18 @@ void loadEntries(const QString &path, bool symbols, QList<Emoji> &entries) {
             for (const auto &tone : o["tones"].toArray()) e.tones.append(tone.toString());
             for (const auto &alias : o["aliases"].toArray())
                 e.words.append(folded(alias.toString()).split(QRegularExpression("[\\s\\p{P}]+"), Qt::SkipEmptyParts));
+            QStringList englishAliases, chineseAliases, pinyinAliases;
+            for (const auto &alias : o["english_aliases"].toArray()) englishAliases << alias.toString();
+            for (const auto &alias : o["chinese_aliases"].toArray()) chineseAliases << alias.toString();
+            for (const auto &alias : o["pinyin_aliases"].toArray()) pinyinAliases << alias.toString();
+            if (englishAliases.isEmpty() && chineseAliases.isEmpty()) {
+                e.chineseText = e.search;
+                e.englishWords = e.pinyinWords = e.words;
+            } else {
+                e.chineseText = folded(e.name + " " + chineseAliases.join(' '));
+                e.englishWords = splitWords(e.english + " " + englishAliases.join(' '));
+                e.pinyinWords = splitWords(o["pinyin"].toString() + " " + pinyinAliases.join(' '));
+            }
         }
         entries.append(e);
     }
@@ -126,8 +141,11 @@ QVariant EmojiModel::data(const QModelIndex &index, int role) const {
     auto *e = entry(index.row());
     if (!e) return {};
     if (role == Qt::DisplayRole) return glyph(index.row());
-    if (role == Qt::ToolTipRole) return e->name+"\n"+e->english;
-    if (role == Qt::AccessibleTextRole) return e->name;
+    if (role == Qt::ToolTipRole) {
+        const auto primary = displayName(*e), alternate = alternateName(*e);
+        return alternate.isEmpty() ? primary : primary+"\n"+alternate;
+    }
+    if (role == Qt::AccessibleTextRole) return displayName(*e);
     return {};
 }
 QString EmojiModel::glyph(int row) const {
@@ -139,6 +157,16 @@ const Emoji *EmojiModel::entry(int row) const {
 }
 bool EmojiModel::favorite(int row) const {
     auto *e = entry(row); return e && favorites.contains(e->text);
+}
+QString EmojiModel::displayName(const Emoji &e) const {
+    if (!englishUi) return e.name;
+    if (e.english.isEmpty() || e.english.startsWith("U+")) return e.name;
+    return e.english;
+}
+QString EmojiModel::alternateName(const Emoji &e) const {
+    const auto primary = displayName(e);
+    const auto alternate = englishUi ? e.name : e.english;
+    return alternate == primary ? QString{} : alternate;
 }
 void EmojiModel::refresh() {
     beginResetModel(); visible.clear();
@@ -161,7 +189,12 @@ void EmojiModel::refresh() {
             else if (term.startsWith("0x")) term = term.mid(2);
             if (term.isEmpty()) continue;
             const bool ascii = std::all_of(term.begin(), term.end(), [](QChar c) { return c.unicode() < 128; });
-            const bool found = ascii ? std::any_of(e.words.begin(), e.words.end(), [&](const QString &word) { return word.startsWith(term); }) : e.search.contains(term);
+            const auto hasPrefix = [&](const QStringList &words) {
+                return std::any_of(words.begin(), words.end(), [&](const QString &word) { return word.startsWith(term); });
+            };
+            const bool found = e.symbol ? (ascii ? hasPrefix(e.words) : e.search.contains(term))
+                : ascii ? (hasPrefix(e.englishWords) || (searchPinyin && hasPrefix(e.pinyinWords)))
+                        : (searchChinese && e.chineseText.contains(term));
             if (!found) { matches = false; break; }
         }
         if (matches) visible.append(i);
@@ -200,7 +233,14 @@ void EmojiDelegate::paint(QPainter *p, const QStyleOptionViewItem &opt, const QM
     p->restore();
 }
 
-Picker::Picker(const QString &dataPath, bool preview) : QWidget(nullptr), settings_("kmoji", "kmoji"), preview_(preview) {
+Picker::Picker(const QString &dataPath, bool preview, const QStringList &searchLanguages)
+    : QWidget(nullptr), settings_("kmoji", "kmoji"), preview_(preview) {
+    model_.englishUi = QCoreApplication::translate("Picker", "Search emoji") == "Search emoji";
+    if (!searchLanguages.isEmpty()) {
+        model_.searchChinese = searchLanguages.contains("zh", Qt::CaseInsensitive)
+            || searchLanguages.contains("chinese", Qt::CaseInsensitive);
+        model_.searchPinyin = searchLanguages.contains("pinyin", Qt::CaseInsensitive);
+    }
     // Keep this title stable: the KWin rule installed by scripts/install.py
     // matches it to give the panel its popup layer and focus behaviour.
     setWindowTitle("kMoji Emoji Picker");
@@ -603,8 +643,10 @@ void Picker::showHoverName() {
     const auto *e = model_.entry(hoveredRow_);
     if (!e || !isVisible()) return;
     const auto metrics = hoverName_->fontMetrics();
-    hoverName_->setText(metrics.elidedText(e->name, Qt::ElideRight, 270)+"\n"+
-                        metrics.elidedText(e->english, Qt::ElideRight, 270));
+    const auto primary = model_.displayName(*e), alternate = model_.alternateName(*e);
+    QString text = metrics.elidedText(primary, Qt::ElideRight, 270);
+    if (!alternate.isEmpty()) text += "\n"+metrics.elidedText(alternate, Qt::ElideRight, 270);
+    hoverName_->setText(text);
     hoverName_->adjustSize();
     const QRect cell = grid_->visualRect(model_.index(hoveredRow_));
     const QPoint top = grid_->viewport()->mapTo(this, cell.topLeft());

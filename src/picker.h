@@ -21,6 +21,8 @@ struct Emoji {
     int category;
     QStringList tones;
     QStringList words;
+    QString chineseText;
+    QStringList englishWords, pinyinWords;
     bool symbol = false;
 };
 
@@ -37,12 +39,14 @@ public:
     QString glyph(int row) const;
     const Emoji *entry(int row) const;
     bool favorite(int row) const;
+    QString displayName(const Emoji &e) const;
+    QString alternateName(const Emoji &e) const;
     QList<Emoji> entries;
     QList<int> visible;
     QStringList favorites, recents;
     int category = -1, tone = 0;
     QString query;
-    bool symbols = false;
+    bool symbols = false, englishUi = false, searchChinese = true, searchPinyin = true;
 };
 
 class EmojiDelegate : public QStyledItemDelegate {
@@ -58,7 +62,7 @@ private:
 class Picker : public QWidget {
     Q_OBJECT
 public:
-    explicit Picker(const QString &dataPath, bool preview = false);
+    explicit Picker(const QString &dataPath, bool preview = false, const QStringList &searchLanguages = {});
     void connectToAddon(const QString &path);
     bool catalogueLoaded() const { return !model_.entries.isEmpty(); }
     void setPreviewQuery(const QString &query);

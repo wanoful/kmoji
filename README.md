@@ -15,11 +15,12 @@
 - 1,600+ 个特殊符号：标点、货币、数学、箭头、几何、字母与数字等 8 个分类。
 - 符号以纯文本插入，不附加 emoji 变体选择符；适合公式、文档和代码注释。
 - 九个表情分类与八个符号分类，均可浏览、收藏和查看最近使用。
-- 中文、英文、无声调拼音搜索；支持粘贴关键词，符号还可按 `U+` 编码检索。
+- 英文始终可搜；中文和无声调拼音可在插件设置中作为附加语言加入或移除。
+- 支持粘贴关键词；符号还可按 `U+` 编码检索。
 - 六种肤色选择、多个 emoji 组合、连续输入。
 - 跟随系统 / 浅色 / 深色外观。
-- 界面文案随系统语言切换，内置英文源字符串和中文翻译。
-- 鼠标悬停约半秒显示表情或符号的中英文名称，移开或滚动时自动隐藏。
+- 界面文案随系统语言切换，内置英文源字符串和中文翻译；可在插件设置中固定语言。
+- 鼠标悬停约半秒显示表情或符号名称，主语言跟随界面语言，移开或滚动时自动隐藏。
 - 收藏、最近使用、肤色和外观保存在 `~/.config/kmoji/kmoji.conf`。
 - 焦点切换后取消输入会话；密码和敏感输入框不触发面板。
 
@@ -100,7 +101,12 @@ python scripts/install.py
 python scripts/install.py --activate
 ```
 
-Fcitx5 设置 → 附加组件 → kMoji 可以修改呼出快捷键。
+Fcitx5 设置 → 附加组件 → kMoji 可以修改：
+
+- 呼出快捷键；
+- 界面语言：跟随系统、English 或简体中文；
+- 附加表情搜索语言：可添加或移除“中文”“拼音”，英文始终启用。
+
 KWin 规则使面板不获取焦点，并显示在 Popup 层；原文本框继续持有输入法会话。
 桌面会话中若绑定了别的应用的相同快捷键，需要解除冲突。
 
@@ -134,11 +140,15 @@ QT_IM_MODULE=fcitx ./build/kmoji-desktop-smoke
 这会短暂打开一个测试文本框，经 Qt 的输入法接口发送测试按键，验证面板冷启动、
 搜索和直接提交，并保留文本框原有内容。它不会向其他应用模拟全局键盘输入。
 
-导出界面预览：
+导出界面预览，可强制界面语言或搜索语言：
 
 ```sh
 QT_QPA_PLATFORM=offscreen ./build/kmoji --screenshot /tmp/kmoji.png
+QT_QPA_PLATFORM=offscreen ./build/kmoji --lang=zh_CN --screenshot /tmp/kmoji-zh.png
+QT_QPA_PLATFORM=offscreen ./build/kmoji --search-langs=en,zh,pinyin --screenshot /tmp/kmoji-search.png
 ```
+
+`--lang` 也接受 `KMOJI_LANG` 环境变量；`--search-langs` 中的英文可省略，始终启用。
 
 ## 翻译
 

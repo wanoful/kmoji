@@ -2,6 +2,9 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: kmoji\n"
+"PO-Revision-Date: 2026-10-21 00:00+0000\n"
+"Last-Translator: kMoji contributors\n"
+"Language-Team: Chinese (Simplified)\n"
 "Language: zh_CN\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -9,3 +12,24 @@ msgstr ""
 
 msgid "Open emoji picker"
 msgstr "打开表情面板"
+
+msgid "UI language"
+msgstr "界面语言"
+
+msgid "Additional emoji search languages (English always on)"
+msgstr "额外表情搜索语言（英文始终启用）"
+
+msgid "Auto"
+msgstr "跟随系统"
+
+msgid "English"
+msgstr "英文"
+
+msgid "Simplified Chinese"
+msgstr "简体中文"
+
+msgid "Chinese"
+msgstr "中文"
+
+msgid "Pinyin"
+msgstr "拼音"

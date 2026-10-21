@@ -8,6 +8,18 @@
 #include <QTimer>
 #include <QTranslator>
 
+namespace {
+QString optionValue(int argc, char **argv, const QString &name) {
+    const QByteArray flag = "--" + name.toUtf8();
+    for (int i = 1; i < argc; ++i) {
+        const QByteArray arg(argv[i]);
+        if (arg == flag && i+1 < argc) return QString::fromLocal8Bit(argv[i+1]);
+        if (arg.startsWith(flag + "=")) return QString::fromLocal8Bit(arg.mid(flag.size()+1));
+    }
+    return {};
+}
+}
+
 int main(int argc, char **argv) {
     // The passive panel receives keys from the addon. Registering another Qt
     // input context here can reset the target application's IME focus on show.
@@ -23,7 +35,10 @@ int main(int argc, char **argv) {
     app.setApplicationName("kmoji");
     app.setApplicationDisplayName("kMoji");
     app.setQuitOnLastWindowClosed(false);
-    const auto locale = QLocale::system();
+    QString language = qEnvironmentVariable("KMOJI_LANG");
+    const auto cliLanguage = optionValue(argc, argv, "lang");
+    if (!cliLanguage.isEmpty()) language = cliLanguage;
+    const auto locale = language.isEmpty() ? QLocale::system() : QLocale(language);
     QTranslator qtTranslator;
     if (qtTranslator.load(locale, "qtbase", "_", QLibraryInfo::path(QLibraryInfo::TranslationsPath)))
         app.installTranslator(&qtTranslator);
@@ -37,7 +52,10 @@ int main(int argc, char **argv) {
         {"socket", QCoreApplication::translate("Main", "Connect to the Fcitx5 addon"), "path"},
         {"data", QCoreApplication::translate("Main", "Override the emoji catalogue"), "path"},
         {"screenshot", QCoreApplication::translate("Main", "Save a preview PNG and exit"), "path"},
-        {"query", QCoreApplication::translate("Main", "Initial query for preview"), "text"}});
+        {"query", QCoreApplication::translate("Main", "Initial query for preview"), "text"},
+        {"lang", QCoreApplication::translate("Main", "Override the UI language"), "code"},
+        {"search-langs", QCoreApplication::translate("Main",
+            "Additional emoji search languages (comma-separated: zh, pinyin)"), "list"}});
     parser.process(app);
     QString dataPath = parser.value("data");
     if (dataPath.isEmpty()) {
@@ -46,7 +64,10 @@ int main(int argc, char **argv) {
     }
     bool preview = parser.isSet("preview") || parser.isSet("screenshot");
     if (!preview && !parser.isSet("socket")) parser.showHelp();
-    Picker picker(dataPath, preview);
+    QStringList searchLanguages;
+    if (parser.isSet("search-langs"))
+        searchLanguages = parser.value("search-langs").split(',', Qt::SkipEmptyParts);
+    Picker picker(dataPath, preview, searchLanguages);
     if (!picker.catalogueLoaded()) {
         qCritical("%s", qPrintable(QCoreApplication::translate("Main", "Cannot load the emoji catalogue: %1").arg(dataPath)));
         return 1;
