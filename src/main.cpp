@@ -54,6 +54,8 @@ int main(int argc, char **argv) {
         {"screenshot", QCoreApplication::translate("Main", "Save a preview PNG and exit"), "path"},
         {"query", QCoreApplication::translate("Main", "Initial query for preview"), "text"},
         {"lang", QCoreApplication::translate("Main", "Override the UI language"), "code"},
+        {"theme", QCoreApplication::translate("Main", "Override the UI theme (system, light, dark)"), "name"},
+        {"accent", QCoreApplication::translate("Main", "Override the accent color"), "color"},
         {"search-langs", QCoreApplication::translate("Main",
             "Additional emoji search languages (comma-separated: zh, pinyin)"), "list"}});
     parser.process(app);
@@ -67,7 +69,8 @@ int main(int argc, char **argv) {
     QStringList searchLanguages;
     if (parser.isSet("search-langs"))
         searchLanguages = parser.value("search-langs").split(',', Qt::SkipEmptyParts);
-    Picker picker(dataPath, preview, searchLanguages);
+    Picker picker(dataPath, preview, searchLanguages,
+                  parser.value("theme"), parser.value("accent"));
     if (!picker.catalogueLoaded()) {
         qCritical("%s", qPrintable(QCoreApplication::translate("Main", "Cannot load the emoji catalogue: %1").arg(dataPath)));
         return 1;

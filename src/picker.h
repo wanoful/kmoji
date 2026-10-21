@@ -62,7 +62,8 @@ private:
 class Picker : public QWidget {
     Q_OBJECT
 public:
-    explicit Picker(const QString &dataPath, bool preview = false, const QStringList &searchLanguages = {});
+    explicit Picker(const QString &dataPath, bool preview = false, const QStringList &searchLanguages = {},
+                    const QString &theme = {}, const QString &accent = {});
     void connectToAddon(const QString &path);
     bool catalogueLoaded() const { return !model_.entries.isEmpty(); }
     void setPreviewQuery(const QString &query);
@@ -114,7 +115,7 @@ private:
     QTimer hoverTimer_;
     QByteArray input_, token_;
     Colors colors_;
-    QString theme_;
+    QString theme_, accent_;
     int navIndex_ = 2;
     int hoveredRow_ = -1;
     bool preview_ = false, session_ = false, shiftHeld_ = false, symbols_ = false;

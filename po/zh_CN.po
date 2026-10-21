@@ -33,3 +33,18 @@ msgstr "中文"
 
 msgid "Pinyin"
 msgstr "拼音"
+
+msgid "Theme"
+msgstr "主题"
+
+msgid "Follow system"
+msgstr "跟随系统"
+
+msgid "Light"
+msgstr "浅色"
+
+msgid "Dark"
+msgstr "深色"
+
+msgid "Accent color"
+msgstr "强调色"

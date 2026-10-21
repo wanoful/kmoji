@@ -9,6 +9,7 @@
 #include <fcitx/instance.h>
 #include <fcitx-config/enum.h>
 #include <fcitx-config/iniparser.h>
+#include <fcitx-utils/color.h>
 #include <fcitx-utils/event.h>
 #include <fcitx-utils/i18n.h>
 #include <fcitx-utils/key.h>
@@ -67,6 +68,16 @@ struct UiLanguageI18n {
         config.setValueByPath("EnumI18n/2", fcitx::translateDomain("kmoji", "Simplified Chinese"));
     }
 };
+FCITX_CONFIG_ENUM(UiTheme, System, Light, Dark);
+struct UiThemeI18n {
+    bool skipDescription() const { return false; }
+    bool skipSave() const { return false; }
+    void dumpDescription(fcitx::RawConfig &config) const {
+        config.setValueByPath("EnumI18n/0", fcitx::translateDomain("kmoji", "Follow system"));
+        config.setValueByPath("EnumI18n/1", fcitx::translateDomain("kmoji", "Light"));
+        config.setValueByPath("EnumI18n/2", fcitx::translateDomain("kmoji", "Dark"));
+    }
+};
 FCITX_CONFIG_ENUM(SearchLanguage, Chinese, Pinyin);
 struct SearchLanguageI18n {
     bool skipDescription() const { return false; }
@@ -81,11 +92,18 @@ using UiLanguageOption = fcitx::Option<UiLanguage, fcitx::NoConstrain<UiLanguage
 using SearchLanguagesOption = fcitx::Option<std::vector<SearchLanguage>,
     fcitx::ListConstrain<fcitx::NoConstrain<SearchLanguage>>,
     fcitx::DefaultMarshaller<std::vector<SearchLanguage>>, SearchLanguageI18n>;
+using UiThemeOption = fcitx::Option<UiTheme, fcitx::NoConstrain<UiTheme>,
+    fcitx::DefaultMarshaller<UiTheme>, UiThemeI18n>;
+using AccentColorOption = fcitx::Option<fcitx::Color, fcitx::NoConstrain<fcitx::Color>,
+    fcitx::DefaultMarshaller<fcitx::Color>, fcitx::NoAnnotation>;
 
 FCITX_CONFIGURATION(KmojiConfig,
     fcitx::KeyListOption triggerKey{this, "TriggerKey",
         fcitx::translateDomain("kmoji", "Open emoji picker"),
         {fcitx::Key("Super+period"), fcitx::Key("Control+Alt+period")}, fcitx::KeyListConstrain()};
+    UiThemeOption theme{this, "Theme", fcitx::translateDomain("kmoji", "Theme"), UiTheme::System};
+    AccentColorOption accentColor{this, "AccentColor",
+        fcitx::translateDomain("kmoji", "Accent color"), fcitx::Color("#7763d7")};
     UiLanguageOption language{this, "Language",
         fcitx::translateDomain("kmoji", "UI language"), UiLanguage::Auto};
     SearchLanguagesOption searchLanguages{this, "SearchLanguages",
@@ -126,6 +144,11 @@ public:
                     std::vector<std::string> args{overridePath ? overridePath : KMOJI_UI_PATH, "--socket", path_};
                     if (config_.language.value() == UiLanguage::SimplifiedChinese) args.push_back("--lang=zh_CN");
                     else if (config_.language.value() == UiLanguage::English) args.push_back("--lang=en");
+                    if (config_.theme.value() == UiTheme::Light) args.push_back("--theme=light");
+                    else if (config_.theme.value() == UiTheme::Dark) args.push_back("--theme=dark");
+                    std::string accent = config_.accentColor.value().toString();
+                    if (accent.size() == 9 && accent[0] == '#') accent.resize(7);
+                    args.push_back("--accent=" + accent);
                     std::string searchLanguages = "en";
                     for (const auto language : config_.searchLanguages.value())
                         searchLanguages += language == SearchLanguage::Chinese ? ",zh" : ",pinyin";

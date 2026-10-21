@@ -233,8 +233,11 @@ void EmojiDelegate::paint(QPainter *p, const QStyleOptionViewItem &opt, const QM
     p->restore();
 }
 
-Picker::Picker(const QString &dataPath, bool preview, const QStringList &searchLanguages)
+Picker::Picker(const QString &dataPath, bool preview, const QStringList &searchLanguages,
+               const QString &theme, const QString &accent)
     : QWidget(nullptr), settings_("kmoji", "kmoji"), preview_(preview) {
+    theme_ = theme == "light" || theme == "dark" ? theme : "system";
+    accent_ = accent;
     model_.englishUi = QCoreApplication::translate("Picker", "Search emoji") == "Search emoji";
     if (!searchLanguages.isEmpty()) {
         model_.searchChinese = searchLanguages.contains("zh", Qt::CaseInsensitive)
@@ -257,7 +260,6 @@ Picker::Picker(const QString &dataPath, bool preview, const QStringList &searchL
     model_.favorites = settings_.value("favorites").toStringList();
     model_.recents = settings_.value("recents").toStringList();
     model_.tone = std::clamp(settings_.value("tone", 0).toInt(), 0, 5);
-    theme_ = settings_.value("theme", "system").toString();
     buildUi(); applyTheme(); selectCategory(2); selectTone(model_.tone);
     hoverTimer_.setSingleShot(true); hoverTimer_.setInterval(550);
     connect(&hoverTimer_, &QTimer::timeout, this, &Picker::showHoverName);
@@ -309,13 +311,6 @@ void Picker::buildUi() {
     continuous_->setToolTip(tr("Keep the panel open after inserting"));
     connect(continuous_, &QCheckBox::toggled, this, [this](bool on) { settings_.setValue("continuous", on); });
     options->addWidget(continuous_); options->addStretch();
-    auto *theme = new QToolButton; theme->setObjectName("theme");
-    theme->setToolTip(tr("Appearance: follow system, light, or dark"));
-    connect(theme, &QToolButton::clicked, this, [this] {
-        theme_ = theme_ == "system" ? "light" : theme_ == "light" ? "dark" : "system";
-        settings_.setValue("theme", theme_); applyTheme();
-    });
-    options->addWidget(theme);
     settingsPanel_->hide(); root->addWidget(settingsPanel_);
     connect(settings, &QToolButton::toggled, settingsPanel_, &QFrame::setVisible);
 
@@ -427,6 +422,18 @@ void Picker::applyTheme() {
     colors_ = dark
         ? Colors{"#26262b", "#26262b", "#303036", "#3c3c43", "#eeeeef", "#a3a3af", "#b6aaff", "#423b58", "#34343c"}
         : Colors{"#fafafa", "#fafafa", "#f0f0f2", "#e1e1e6", "#303037", "#7c7c88", "#7763d7", "#eee9fa", "#ececf0"};
+    QString accentValue = accent_;
+    if (accentValue.size() == 9 && accentValue.startsWith('#')) accentValue.truncate(7);
+    QColor accent(accentValue);
+    if (accent.isValid()) {
+        auto mix = [](const QColor &a, const QColor &b, qreal t) {
+            return QColor::fromRgbF(a.redF()*t + b.redF()*(1-t),
+                                    a.greenF()*t + b.greenF()*(1-t),
+                                    a.blueF()*t + b.blueF()*(1-t));
+        };
+        colors_.accent = accent;
+        colors_.selected = mix(accent, colors_.background, dark ? 0.28 : 0.13);
+    }
     const auto c = colors_;
     setStyleSheet(QString(R"(
       QWidget#picker { background:%1; color:%5; border:1px solid %4; border-radius:12px; }
@@ -477,9 +484,6 @@ void Picker::applyTheme() {
         icon.addPixmap(categoryIcon(i, c.accent), QIcon::Active, QIcon::On);
         categoryButtons_[i]->setIcon(icon);
     }
-    auto *theme = findChild<QToolButton *>("theme");
-    const auto themeName = theme_ == "system" ? tr("Follow system") : theme_ == "dark" ? tr("Dark") : tr("Light");
-    theme->setText(tr("Appearance · %1").arg(themeName));
     grid_->viewport()->update();
 }
 

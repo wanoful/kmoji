@@ -18,10 +18,11 @@
 - 英文始终可搜；中文和无声调拼音可在插件设置中作为附加语言加入或移除。
 - 支持粘贴关键词；符号还可按 `U+` 编码检索。
 - 六种肤色选择、多个 emoji 组合、连续输入。
-- 跟随系统 / 浅色 / 深色外观。
+- 跟随系统 / 浅色 / 深色外观，强调色可自定义。
 - 界面文案随系统语言切换，内置英文源字符串和中文翻译；可在插件设置中固定语言。
 - 鼠标悬停约半秒显示表情或符号名称，主语言跟随界面语言，移开或滚动时自动隐藏。
-- 收藏、最近使用、肤色和外观保存在 `~/.config/kmoji/kmoji.conf`。
+- 收藏、最近使用、连续输入和肤色保存在 `~/.config/kmoji/kmoji.conf`；
+  主题、强调色和搜索语言保存在 Fcitx5 附加组件配置中。
 - 焦点切换后取消输入会话；密码和敏感输入框不触发面板。
 
 标题栏 `Ω` 或 `Ctrl + Shift + S` 打开特殊符号目录：
@@ -41,10 +42,9 @@
 | 点击 / `Enter` | 输入当前项；已有组合时，Enter 输入组合 |
 | `Shift + 点击` / `Shift + Enter` | 将当前项加入组合；再按 Enter 或点“输入”提交 |
 | 右键 / `Ctrl + D` | 收藏 / 取消收藏 |
-| 右上角 `···` | 展开连续输入与外观选项 |
+| 右上角 `···` | 展开连续输入选项 |
 | 连续输入 | 提交后保留面板 |
 | `Esc` | 取消并关闭 |
-| 更多选项中的“外观” | 依次切换浅色、深色、跟随系统 |
 | 分类标题旁的手掌图标 | 展开肤色选择 |
 
 搜索默认在当前分类内进行。需要搜索全部 emoji 时选择“全部表情”。
@@ -104,8 +104,12 @@ python scripts/install.py --activate
 Fcitx5 设置 → 附加组件 → kMoji 可以修改：
 
 - 呼出快捷键；
+- 主题：跟随系统、浅色或深色；
+- 强调色：颜色选择器，用于选中态、分类高亮和输入按钮；
 - 界面语言：跟随系统、English 或简体中文；
 - 附加表情搜索语言：可添加或移除“中文”“拼音”，英文始终启用。
+
+主题和强调色在下次打开面板时生效。
 
 KWin 规则使面板不获取焦点，并显示在 Popup 层；原文本框继续持有输入法会话。
 桌面会话中若绑定了别的应用的相同快捷键，需要解除冲突。
@@ -144,7 +148,7 @@ QT_IM_MODULE=fcitx ./build/kmoji-desktop-smoke
 
 ```sh
 QT_QPA_PLATFORM=offscreen ./build/kmoji --screenshot /tmp/kmoji.png
-QT_QPA_PLATFORM=offscreen ./build/kmoji --lang=zh_CN --screenshot /tmp/kmoji-zh.png
+QT_QPA_PLATFORM=offscreen ./build/kmoji --lang=zh_CN --theme=dark --accent='#ff3b30' --screenshot /tmp/kmoji-dark.png
 QT_QPA_PLATFORM=offscreen ./build/kmoji --search-langs=en,zh,pinyin --screenshot /tmp/kmoji-search.png
 ```
 
