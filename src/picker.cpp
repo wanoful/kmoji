@@ -8,6 +8,7 @@
 #include <QFile>
 #include <QFrame>
 #include <QHBoxLayout>
+#include <QHideEvent>
 #include <QIcon>
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -100,7 +101,7 @@ QVariant EmojiModel::data(const QModelIndex &index, int role) const {
     auto *e = entry(index.row());
     if (!e) return {};
     if (role == Qt::DisplayRole) return glyph(index.row());
-    if (role == Qt::ToolTipRole) return e->name+"\n"+e->english+"\n右键收藏 · Shift 点选组合";
+    if (role == Qt::ToolTipRole) return e->name+"\n"+e->english;
     if (role == Qt::AccessibleTextRole) return e->name;
     return {};
 }
@@ -188,6 +189,9 @@ Picker::Picker(const QString &dataPath, bool preview) : QWidget(nullptr), settin
     model_.tone = std::clamp(settings_.value("tone", 0).toInt(), 0, 5);
     theme_ = settings_.value("theme", "system").toString();
     buildUi(); applyTheme(); selectCategory(2); selectTone(model_.tone);
+    hoverTimer_.setSingleShot(true); hoverTimer_.setInterval(550);
+    connect(&hoverTimer_, &QTimer::timeout, this, &Picker::showHoverName);
+    connect(grid_->verticalScrollBar(), &QScrollBar::valueChanged, this, &Picker::hideHoverName);
     connect(qApp->styleHints(), &QStyleHints::colorSchemeChanged, this, [this] { if (theme_ == "system") applyTheme(); });
     debounce_.setSingleShot(true); debounce_.setInterval(60);
     connect(&debounce_, &QTimer::timeout, this, &Picker::refresh);
@@ -314,6 +318,10 @@ void Picker::buildUi() {
         connect(button, &QPushButton::clicked, this, [this, i] { selectCategory(i); });
     }
     root->addWidget(categories);
+    // A child overlay also works while the Wayland window remains unfocused.
+    hoverName_ = new QLabel(this); hoverName_->setObjectName("emojiName");
+    hoverName_->setAttribute(Qt::WA_TransparentForMouseEvents);
+    hoverName_->setTextFormat(Qt::PlainText); hoverName_->hide();
     updateCollection();
 }
 
@@ -351,6 +359,7 @@ void Picker::applyTheme() {
       QScrollBar::handle:vertical { background:%4; border-radius:2px; min-height:24px; }
       QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height:0; }
       QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical { background:transparent; }
+      QLabel#emojiName { background:%3; color:%5; border:1px solid %4; border-radius:6px; padding:7px 9px; font-size:11px; }
       QToolTip { background:%3; color:%5; border:1px solid %4; padding:6px; }
     )").arg(c.background.name(), c.surface.name(), c.sidebar.name(), c.border.name(), c.text.name(), c.muted.name(), c.accent.name(), c.selected.name(), c.hover.name()));
     delegate_->colors = colors_;
@@ -388,6 +397,7 @@ void Picker::selectTone(int tone) {
     grid_->viewport()->update();
 }
 void Picker::refresh() {
+    hideHoverName();
     debounce_.stop(); model_.query = search_->text(); model_.refresh();
     heading_->setText(search_->text().isEmpty() ? navNames[navIndex_] : "搜索结果");
     grid_->setCurrentIndex(model_.index(0)); grid_->scrollToTop();
@@ -440,6 +450,7 @@ void Picker::moveSelection(int delta) {
     const auto index = model_.index(next); grid_->setCurrentIndex(index); grid_->scrollTo(index);
 }
 void Picker::handleKey(int sym, int states, const QString &text) {
+    hideHoverName();
     const bool ctrl = states & 4, shift = states & 1, alt = states & 8, super = states & 64;
     const int columns = std::max(1, grid_->viewport()->width()/grid_->gridSize().width());
     if (sym == 0xff1b) { cancel(); return; }
@@ -471,10 +482,55 @@ void Picker::handleKey(int sym, int states, const QString &text) {
     QKeyEvent event(QEvent::KeyPress, key, modifiers, text);
     QApplication::sendEvent(search_, &event);
 }
+void Picker::hideHoverName() {
+    hoverTimer_.stop(); hoveredRow_ = -1;
+    if (hoverName_) hoverName_->hide();
+}
+void Picker::trackHover(const QPoint &position) {
+    const auto index = grid_->indexAt(position);
+    const int row = index.isValid() ? index.row() : -1;
+    if (row == hoveredRow_) return;
+    hideHoverName(); hoveredRow_ = row;
+    if (row >= 0) hoverTimer_.start();
+}
+void Picker::showHoverName() {
+    const auto *e = model_.entry(hoveredRow_);
+    if (!e || !isVisible()) return;
+    const auto metrics = hoverName_->fontMetrics();
+    hoverName_->setText(metrics.elidedText(e->name, Qt::ElideRight, 270)+"\n"+
+                        metrics.elidedText(e->english, Qt::ElideRight, 270));
+    hoverName_->adjustSize();
+    const QRect cell = grid_->visualRect(model_.index(hoveredRow_));
+    const QPoint top = grid_->viewport()->mapTo(this, cell.topLeft());
+    const int x = std::clamp(top.x()+(cell.width()-hoverName_->width())/2, 8, width()-hoverName_->width()-8);
+    int y = top.y()+cell.height()+5;
+    const int gridBottom = grid_->viewport()->mapTo(this, QPoint(0, grid_->viewport()->height())).y();
+    if (y+hoverName_->height() > gridBottom) y = top.y()-hoverName_->height()-5;
+    hoverName_->move(x, std::clamp(y, 8, height()-hoverName_->height()-8));
+    hoverName_->raise(); hoverName_->show();
+}
 bool Picker::eventFilter(QObject *object, QEvent *event) {
-    if (grid_ && object == grid_->viewport() && event->type() == QEvent::MouseButtonPress) {
-        auto *mouse = static_cast<QMouseEvent *>(event);
-        if (mouse->button() == Qt::RightButton) { toggleFavorite(grid_->indexAt(mouse->position().toPoint()).row()); return true; }
+    if (grid_ && object == grid_->viewport()) {
+        switch (event->type()) {
+        case QEvent::MouseMove:
+            trackHover(static_cast<QMouseEvent *>(event)->position().toPoint());
+            break;
+        case QEvent::MouseButtonPress: {
+            hideHoverName();
+            auto *mouse = static_cast<QMouseEvent *>(event);
+            if (mouse->button() == Qt::RightButton) { toggleFavorite(grid_->indexAt(mouse->position().toPoint()).row()); return true; }
+            break;
+        }
+        case QEvent::Leave:
+        case QEvent::Wheel:
+        case QEvent::Resize:
+            hideHoverName();
+            break;
+        case QEvent::ToolTip:
+            // Suppress Qt's separate tooltip window; the child label owns it.
+            return true;
+        default: break;
+        }
     }
     if (object == search_ && event->type() == QEvent::KeyPress && preview_) {
         auto *key = static_cast<QKeyEvent *>(event);
@@ -505,6 +561,7 @@ void Picker::cancel() {
     session_ = false; hide(); if (preview_) qApp->quit();
 }
 void Picker::closeEvent(QCloseEvent *event) { event->ignore(); cancel(); }
+void Picker::hideEvent(QHideEvent *event) { hideHoverName(); QWidget::hideEvent(event); }
 void Picker::connectToAddon(const QString &path) { socket_.connectToServer(path); }
 void Picker::send(const QByteArray &line) { socket_.write(line+'\n'); socket_.flush(); }
 void Picker::setPreviewQuery(const QString &query) { search_->setText(query); refresh(); if (preview_) search_->setFocus(); }

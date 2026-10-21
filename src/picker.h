@@ -64,6 +64,7 @@ protected:
     bool eventFilter(QObject *, QEvent *) override;
     void keyPressEvent(QKeyEvent *) override;
     void closeEvent(QCloseEvent *) override;
+    void hideEvent(QHideEvent *) override;
 private:
     void buildUi();
     void applyTheme();
@@ -81,10 +82,14 @@ private:
     void receive(const QByteArray &line);
     void send(const QByteArray &line);
     void openSession(const QByteArray &token);
+    void trackHover(const QPoint &position);
+    void showHoverName();
+    void hideHoverName();
     EmojiModel model_;
     EmojiDelegate *delegate_ = nullptr;
     QListView *grid_ = nullptr;
     QLineEdit *search_ = nullptr;
+    QLabel *hoverName_ = nullptr;
     QLabel *heading_, *empty_, *collectionLabel_;
     QFrame *settingsPanel_, *tonePanel_, *collectionPanel_;
     QToolButton *skinButton_;
@@ -96,9 +101,11 @@ private:
     QLocalSocket socket_;
     QSettings settings_;
     QTimer debounce_;
+    QTimer hoverTimer_;
     QByteArray input_, token_;
     Colors colors_;
     QString theme_;
     int navIndex_ = 2;
+    int hoveredRow_ = -1;
     bool preview_ = false, session_ = false, shiftHeld_ = false;
 };
