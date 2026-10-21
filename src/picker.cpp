@@ -28,10 +28,71 @@
 #include <algorithm>
 
 namespace {
-const QStringList categoryNames = {"全部表情", "最近使用", "我的收藏", "笑脸与情感", "人物与手势", "动物与自然", "食物与饮品", "旅行与地点", "活动与运动", "物品与工具", "符号", "旗帜"};
 const QStringList navNames = {"最近使用", "我的收藏", "全部表情", "笑脸与情感", "人物与手势", "动物与自然", "食物与饮品", "旅行与地点", "活动与运动", "物品与工具", "符号", "旗帜"};
-const QStringList navSymbols = {"◷", "♡", "⊞", "☺", "☝", "❀", "♨", "✈", "⚑", "♧", "⌘", "⚐"};
 const QStringList toneColors = {"#ffd166", "#f8dfc6", "#eac39b", "#c89460", "#966747", "#614337"};
+QPixmap categoryIcon(int category, const QColor &color) {
+    QPixmap image(36, 36); image.setDevicePixelRatio(2); image.fill(Qt::transparent);
+    QPainter p(&image); p.setRenderHint(QPainter::Antialiasing);
+    p.setPen(QPen(color, 1.25, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
+    p.setBrush(Qt::NoBrush);
+    switch (category) {
+    case 0:
+        p.drawEllipse(QRectF(2.5, 2.5, 13, 13));
+        p.drawLine(QPointF(9, 5), QPointF(9, 9)); p.drawLine(QPointF(9, 9), QPointF(12, 10.5));
+        break;
+    case 1: {
+        QPainterPath path; path.moveTo(9, 15);
+        path.cubicTo(-3, 7, 5, -1, 9, 5); path.cubicTo(13, -1, 21, 7, 9, 15);
+        p.drawPath(path); break;
+    }
+    case 2:
+        for (int x : {3, 10}) for (int y : {3, 10}) p.drawRoundedRect(QRectF(x, y, 5, 5), 1, 1);
+        break;
+    case 3:
+        p.drawEllipse(QRectF(2.5, 2.5, 13, 13));
+        p.drawPoint(QPointF(6.5, 7)); p.drawPoint(QPointF(11.5, 7));
+        p.drawArc(QRectF(5.5, 7.5, 7, 5), 200*16, 140*16);
+        break;
+    case 4:
+        p.drawEllipse(QRectF(6, 2, 6, 6));
+        p.drawArc(QRectF(3, 9, 12, 12), 0, 180*16); p.drawLine(3, 15, 15, 15);
+        break;
+    case 5: {
+        QPainterPath leaf; leaf.moveTo(4, 14);
+        leaf.cubicTo(0, 5, 9, 2, 15, 3); leaf.cubicTo(16, 10, 12, 17, 4, 14);
+        p.drawPath(leaf); p.drawLine(3, 16, 12, 6); break;
+    }
+    case 6:
+        p.drawRoundedRect(QRectF(3, 6, 10, 8), 2, 2);
+        p.drawArc(QRectF(11, 7, 5, 5), -90*16, 180*16);
+        p.drawLine(3, 16, 14, 16); p.drawLine(6, 2, 6, 4); p.drawLine(10, 2, 10, 4);
+        break;
+    case 7: {
+        QPainterPath plane; plane.moveTo(2, 7); plane.lineTo(16, 2); plane.lineTo(11, 16);
+        plane.lineTo(8, 10); plane.closeSubpath(); p.drawPath(plane); p.drawLine(8, 10, 16, 2); break;
+    }
+    case 8:
+        p.drawEllipse(QRectF(2.5, 2.5, 13, 13));
+        p.drawLine(4, 4, 14, 14); p.drawLine(4, 14, 14, 4);
+        p.drawArc(QRectF(-1, 5, 10, 14), 0, 100*16); p.drawArc(QRectF(9, -1, 10, 14), 180*16, 100*16);
+        break;
+    case 9:
+        p.drawArc(QRectF(4, 2, 10, 11), -30*16, 240*16);
+        p.drawLine(5, 10, 6, 13); p.drawLine(13, 10, 12, 13);
+        p.drawLine(6, 13, 12, 13); p.drawLine(7, 16, 11, 16);
+        break;
+    case 10:
+        p.drawLine(7, 3, 5, 15); p.drawLine(12, 3, 10, 15);
+        p.drawLine(3, 7, 15, 7); p.drawLine(2, 11, 14, 11);
+        break;
+    case 11: {
+        p.drawLine(4, 2, 4, 16); QPainterPath flag; flag.moveTo(4, 3);
+        flag.cubicTo(8, 0, 10, 6, 15, 3); flag.lineTo(15, 10);
+        flag.cubicTo(10, 13, 8, 7, 4, 10); p.drawPath(flag); break;
+    }
+    }
+    return image;
+}
 QString folded(QString text) { return text.normalized(QString::NormalizationForm_KC).toCaseFolded(); }
 }
 
@@ -89,11 +150,11 @@ void EmojiDelegate::paint(QPainter *p, const QStyleOptionViewItem &opt, const QM
     p->save(); p->setRenderHint(QPainter::Antialiasing);
     const QRectF tile = opt.rect.adjusted(3, 3, -3, -3);
     if (opt.state & QStyle::State_Selected) {
-        p->setBrush(colors.selected); p->setPen(QPen(colors.accent, 1.3)); p->drawRoundedRect(tile, 11, 11);
+        p->setBrush(colors.selected); p->setPen(QPen(colors.accent, 1.0)); p->drawRoundedRect(tile, 8, 8);
     } else if (opt.state & QStyle::State_MouseOver) {
-        p->setBrush(colors.hover); p->setPen(Qt::NoPen); p->drawRoundedRect(tile, 11, 11);
+        p->setBrush(colors.hover); p->setPen(Qt::NoPen); p->drawRoundedRect(tile, 8, 8);
     }
-    QFont font("Noto Color Emoji"); font.setPixelSize(29);
+    QFont font("Noto Color Emoji"); font.setPixelSize(27);
     p->setFont(font); p->setPen(colors.text);
     p->drawText(opt.rect.adjusted(0, -1, 0, -1), Qt::AlignCenter, model_->glyph(index.row()));
     if (model_->favorite(index.row())) {
@@ -110,7 +171,7 @@ Picker::Picker(const QString &dataPath, bool preview) : QWidget(nullptr), settin
         setAttribute(Qt::WA_ShowWithoutActivating);
         setFocusPolicy(Qt::NoFocus);
     }
-    setFixedSize(652, 594);
+    setFixedSize(376, 420);
     QFile file(dataPath);
     if (file.open(QIODevice::ReadOnly)) {
         for (const auto &value : QJsonDocument::fromJson(file.readAll()).object()["entries"].toArray()) {
@@ -143,133 +204,173 @@ Picker::Picker(const QString &dataPath, bool preview) : QWidget(nullptr), settin
 }
 
 void Picker::buildUi() {
-    auto *root = new QVBoxLayout(this); root->setContentsMargins(0, 0, 0, 0); root->setSpacing(0);
-    auto *top = new QFrame; top->setObjectName("top");
-    auto *topLayout = new QHBoxLayout(top); topLayout->setContentsMargins(22, 17, 18, 17); topLayout->setSpacing(10);
-    auto *logo = new QLabel("k"); logo->setObjectName("logo"); logo->setAlignment(Qt::AlignCenter); logo->setFixedSize(30, 30);
-    topLayout->addWidget(logo);
-    auto *brand = new QLabel("kMoji"); brand->setObjectName("brand"); topLayout->addWidget(brand);
-    auto *tag = new QLabel("让表达多一点表情"); tag->setObjectName("muted"); topLayout->addWidget(tag);
-    topLayout->addStretch();
-    auto *theme = new QToolButton; theme->setObjectName("theme"); theme->setText("◐"); theme->setToolTip("切换外观：跟随系统 / 浅色 / 深色"); theme->setFixedSize(30, 30);
-    connect(theme, &QToolButton::clicked, this, [this, theme] {
+    auto *root = new QVBoxLayout(this);
+    root->setContentsMargins(12, 10, 12, 8); root->setSpacing(8);
+
+    auto *searchRow = new QHBoxLayout; searchRow->setSpacing(6);
+    search_ = new QLineEdit;
+    search_->setPlaceholderText("搜索表情"); search_->setClearButtonEnabled(true);
+    search_->setFixedHeight(36); search_->setObjectName("search");
+    search_->setAccessibleName("搜索表情，支持英文和拼音");
+    search_->setToolTip("支持英文、拼音，或 Ctrl+V 粘贴中文");
+    search_->installEventFilter(this);
+    if (!preview_) search_->setFocusPolicy(Qt::NoFocus);
+    searchRow->addWidget(search_, 1);
+    auto *settings = new QToolButton;
+    settings->setText("···"); settings->setObjectName("settingsButton");
+    settings->setToolTip("更多选项"); settings->setAccessibleName("更多选项");
+    settings->setCheckable(true); settings->setFixedSize(28, 30);
+    auto *close = new QToolButton;
+    close->setText("×"); close->setFixedSize(24, 30);
+    close->setToolTip("关闭 · Esc"); close->setAccessibleName("关闭");
+    connect(close, &QToolButton::clicked, this, &Picker::cancel);
+    searchRow->addWidget(settings); searchRow->addWidget(close);
+    root->addLayout(searchRow);
+
+    settingsPanel_ = new QFrame; settingsPanel_->setObjectName("options");
+    auto *options = new QHBoxLayout(settingsPanel_);
+    options->setContentsMargins(8, 6, 8, 6); options->setSpacing(8);
+    continuous_ = new QCheckBox("连续输入");
+    continuous_->setChecked(settings_.value("continuous", false).toBool());
+    continuous_->setToolTip("输入后保留面板，按 Esc 关闭");
+    connect(continuous_, &QCheckBox::toggled, this, [this](bool on) { settings_.setValue("continuous", on); });
+    options->addWidget(continuous_); options->addStretch();
+    auto *theme = new QToolButton; theme->setObjectName("theme");
+    theme->setToolTip("切换外观：跟随系统 / 浅色 / 深色");
+    connect(theme, &QToolButton::clicked, this, [this] {
         theme_ = theme_ == "system" ? "light" : theme_ == "light" ? "dark" : "system";
         settings_.setValue("theme", theme_); applyTheme();
-        theme->setToolTip("当前外观：" + (theme_ == "system" ? QString("跟随系统") : theme_ == "dark" ? QString("深色") : QString("浅色")));
     });
-    topLayout->addWidget(theme);
-    auto *close = new QToolButton; close->setText("×"); close->setToolTip("关闭 · Esc"); close->setFixedSize(30, 30);
-    connect(close, &QToolButton::clicked, this, &Picker::cancel); topLayout->addWidget(close);
-    root->addWidget(top);
+    options->addWidget(theme);
+    settingsPanel_->hide(); root->addWidget(settingsPanel_);
+    connect(settings, &QToolButton::toggled, settingsPanel_, &QFrame::setVisible);
 
-    auto *body = new QHBoxLayout; body->setContentsMargins(0, 0, 0, 0); body->setSpacing(0);
-    auto *sidebar = new QFrame; sidebar->setObjectName("sidebar"); sidebar->setFixedWidth(146);
-    auto *nav = new QVBoxLayout(sidebar); nav->setContentsMargins(10, 16, 10, 14); nav->setSpacing(4);
+    auto *section = new QHBoxLayout; section->setSpacing(6);
+    heading_ = new QLabel; heading_->setObjectName("heading");
+    section->addWidget(heading_); section->addStretch();
+    skinButton_ = new QToolButton;
+    skinButton_->setObjectName("skinButton"); skinButton_->setFixedSize(28, 26);
+    skinButton_->setCheckable(true); skinButton_->setToolTip("选择肤色");
+    skinButton_->setAccessibleName("选择肤色");
+    section->addWidget(skinButton_); root->addLayout(section);
+
+    tonePanel_ = new QFrame; tonePanel_->setObjectName("options");
+    auto *tones = new QHBoxLayout(tonePanel_); tones->setContentsMargins(8, 4, 8, 4);
+    auto *toneLabel = new QLabel("肤色"); toneLabel->setObjectName("muted");
+    tones->addWidget(toneLabel); tones->addStretch();
+    const QStringList toneNames = {"默认", "浅色", "较浅", "中等", "较深", "深色"};
+    for (int i = 0; i < 6; ++i) {
+        auto *tone = new QToolButton;
+        tone->setFixedSize(24, 24); tone->setObjectName("tone"); tone->setCheckable(true);
+        tone->setToolTip(toneNames[i]); tone->setAccessibleName(toneNames[i]);
+        toneButtons_.append(tone); tones->addWidget(tone);
+        connect(tone, &QToolButton::clicked, this, [this, i] {
+            selectTone(i); skinButton_->setChecked(false);
+        });
+    }
+    tonePanel_->hide(); root->addWidget(tonePanel_);
+    connect(skinButton_, &QToolButton::toggled, tonePanel_, &QFrame::setVisible);
+
+    grid_ = new QListView; grid_->setObjectName("grid"); grid_->setModel(&model_);
+    delegate_ = new EmojiDelegate(&model_, grid_); grid_->setItemDelegate(delegate_);
+    grid_->setViewMode(QListView::IconMode); grid_->setResizeMode(QListView::Adjust);
+    grid_->setMovement(QListView::Static); grid_->setGridSize({42, 42});
+    grid_->setUniformItemSizes(true); grid_->setSpacing(0);
+    grid_->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    grid_->setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
+    grid_->setSelectionMode(QAbstractItemView::SingleSelection);
+    grid_->setMouseTracking(true); grid_->setFocusPolicy(Qt::NoFocus);
+    grid_->viewport()->installEventFilter(this);
+    connect(grid_, &QListView::clicked, this, [this](const QModelIndex &index) {
+        choose(index.row(), shiftHeld_ || (QApplication::keyboardModifiers() & Qt::ShiftModifier));
+    });
+    empty_ = new QLabel(grid_->viewport()); empty_->setAlignment(Qt::AlignCenter);
+    empty_->setWordWrap(true); empty_->setObjectName("empty");
+    root->addWidget(grid_, 1);
+
+    collectionPanel_ = new QFrame; collectionPanel_->setObjectName("collection");
+    auto *collection = new QHBoxLayout(collectionPanel_);
+    collection->setContentsMargins(7, 4, 5, 4); collection->setSpacing(5);
+    collectionLabel_ = new QLabel; collectionLabel_->setObjectName("collected");
+    collection->addWidget(collectionLabel_, 1);
+    auto *clear = new QToolButton;
+    clear->setText("×"); clear->setObjectName("clearCollection"); clear->setToolTip("清空组合");
+    connect(clear, &QToolButton::clicked, this, [this] { collected_.clear(); updateCollection(); });
+    collection->addWidget(clear);
+    insert_ = new QPushButton; insert_->setObjectName("insert"); insert_->setFixedHeight(27);
+    connect(insert_, &QPushButton::clicked, this, &Picker::commit); collection->addWidget(insert_);
+    collectionPanel_->hide(); root->addWidget(collectionPanel_);
+
+    auto *categories = new QFrame; categories->setObjectName("categories");
+    auto *nav = new QHBoxLayout(categories);
+    nav->setContentsMargins(0, 5, 0, 0); nav->setSpacing(1);
     for (int i = 0; i < navNames.size(); ++i) {
-        if (i == 3) { auto *line = new QFrame; line->setObjectName("divider"); line->setFixedHeight(1); nav->addSpacing(7); nav->addWidget(line); nav->addSpacing(7); }
-        auto *button = new QPushButton(navSymbols[i]+"   "+navNames[i]);
-        button->setObjectName("category"); button->setCheckable(true); button->setFixedHeight(31); button->setFocusPolicy(Qt::NoFocus);
+        auto *button = new QPushButton;
+        button->setObjectName("category"); button->setCheckable(true);
+        button->setFixedSize(28, 30); button->setIconSize({18, 18});
+        button->setToolTip(navNames[i]); button->setAccessibleName(navNames[i]);
+        button->setFocusPolicy(Qt::NoFocus);
         categoryButtons_.append(button); nav->addWidget(button);
         connect(button, &QPushButton::clicked, this, [this, i] { selectCategory(i); });
     }
-    nav->addStretch();
-    auto *version = new QLabel("UNICODE 17.0"); version->setObjectName("version"); nav->addWidget(version);
-    body->addWidget(sidebar);
-
-    auto *main = new QFrame; main->setObjectName("main");
-    auto *content = new QVBoxLayout(main); content->setContentsMargins(19, 17, 19, 10); content->setSpacing(12);
-    search_ = new QLineEdit; search_->setPlaceholderText("搜索表情、英文或拼音…"); search_->setClearButtonEnabled(true);
-    search_->setFixedHeight(42); search_->setObjectName("search"); search_->installEventFilter(this);
-    if (!preview_) search_->setFocusPolicy(Qt::NoFocus);
-    content->addWidget(search_);
-    auto *section = new QHBoxLayout; section->setSpacing(8);
-    heading_ = new QLabel; heading_->setObjectName("heading"); section->addWidget(heading_);
-    count_ = new QLabel; count_->setObjectName("count"); section->addWidget(count_); section->addStretch();
-    for (int i = 0; i < 6; ++i) {
-        auto *tone = new QToolButton; tone->setFixedSize(19, 25); tone->setObjectName("tone"); tone->setCheckable(true);
-        tone->setToolTip(i ? QString("肤色 %1").arg(i) : QString("默认肤色")); toneButtons_.append(tone); section->addWidget(tone);
-        connect(tone, &QToolButton::clicked, this, [this, i] { selectTone(i); });
-    }
-    content->addLayout(section);
-    grid_ = new QListView; grid_->setObjectName("grid"); grid_->setModel(&model_);
-    delegate_ = new EmojiDelegate(&model_, grid_); grid_->setItemDelegate(delegate_);
-    grid_->setViewMode(QListView::IconMode); grid_->setResizeMode(QListView::Adjust); grid_->setMovement(QListView::Static);
-    grid_->setGridSize({54, 54}); grid_->setUniformItemSizes(true); grid_->setSpacing(0);
-    grid_->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff); grid_->setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
-    grid_->setSelectionMode(QAbstractItemView::SingleSelection); grid_->setMouseTracking(true); grid_->setFocusPolicy(Qt::NoFocus);
-    grid_->viewport()->installEventFilter(this);
-    connect(grid_, &QListView::clicked, this, [this](const QModelIndex &index) { choose(index.row(), shiftHeld_ || (QApplication::keyboardModifiers() & Qt::ShiftModifier)); });
-    connect(grid_->selectionModel(), &QItemSelectionModel::currentChanged, this, [this] { updateDetails(); });
-    empty_ = new QLabel(grid_->viewport()); empty_->setAlignment(Qt::AlignCenter); empty_->setWordWrap(true); empty_->setObjectName("empty");
-    content->addWidget(grid_, 1);
-    auto *collection = new QFrame; collection->setObjectName("collection"); collection->setMinimumHeight(36);
-    auto *collectionLayout = new QHBoxLayout(collection); collectionLayout->setContentsMargins(10, 4, 5, 4);
-    collectionLabel_ = new QLabel("Shift 点选，将多个表情组合输入"); collectionLabel_->setObjectName("muted"); collectionLayout->addWidget(collectionLabel_, 1);
-    auto *clear = new QToolButton; clear->setText("清空"); clear->setObjectName("clearCollection"); clear->setToolTip("清空已选表情");
-    connect(clear, &QToolButton::clicked, this, [this] { collected_.clear(); updateCollection(); }); collectionLayout->addWidget(clear);
-    insert_ = new QPushButton("输入"); insert_->setObjectName("insert"); insert_->setFixedHeight(28); insert_->setMinimumWidth(64);
-    connect(insert_, &QPushButton::clicked, this, &Picker::commit); collectionLayout->addWidget(insert_);
-    content->addWidget(collection);
-    details_ = new QLabel(" "); details_->setObjectName("details"); details_->setFixedHeight(19); content->addWidget(details_);
-    body->addWidget(main, 1); root->addLayout(body, 1);
-    auto *footer = new QFrame; footer->setObjectName("footer");
-    auto *bottom = new QHBoxLayout(footer); bottom->setContentsMargins(17, 10, 17, 10); bottom->setSpacing(10);
-    continuous_ = new QCheckBox("连续输入"); continuous_->setChecked(settings_.value("continuous", false).toBool());
-    continuous_->setToolTip("输入后保留面板，按 Esc 关闭");
-    connect(continuous_, &QCheckBox::toggled, this, [this](bool on) { settings_.setValue("continuous", on); });
-    bottom->addWidget(continuous_); bottom->addStretch();
-    status_ = new QLabel(preview_ ? "界面预览" : "↵ 输入   ·   右键收藏   ·   Esc 关闭"); status_->setObjectName("muted"); bottom->addWidget(status_);
-    root->addWidget(footer); updateCollection();
+    root->addWidget(categories);
+    updateCollection();
 }
 
 void Picker::applyTheme() {
     const bool dark = theme_ == "dark" || (theme_ == "system" && qApp->styleHints()->colorScheme() == Qt::ColorScheme::Dark);
     colors_ = dark
-        ? Colors{"#1b1d27", "#222530", "#1c1f29", "#343746", "#eeeff8", "#959bb1", "#a69aff", "#37334e", "#2d303f"}
-        : Colors{"#ffffff", "#ffffff", "#f6f7fb", "#e9eaf2", "#292b3b", "#8b90a4", "#7060dc", "#eeebfc", "#f2f3f9"};
+        ? Colors{"#26262b", "#26262b", "#303036", "#3c3c43", "#eeeeef", "#a3a3af", "#b6aaff", "#423b58", "#34343c"}
+        : Colors{"#fafafa", "#fafafa", "#f0f0f2", "#e1e1e6", "#303037", "#7c7c88", "#7763d7", "#eee9fa", "#ececf0"};
     const auto c = colors_;
-    auto sheet = QString(R"(
-      QWidget#picker { background:%1; color:%5; border:1px solid %4; border-radius:14px; }
+    setStyleSheet(QString(R"(
+      QWidget#picker { background:%1; color:%5; border:1px solid %4; border-radius:12px; }
       QWidget { font-family:"Noto Sans","sans-serif"; font-size:12px; color:%5; }
-      QFrame#top { background:%1; border-bottom:1px solid %4; border-top-left-radius:14px; border-top-right-radius:14px; }
-      QLabel#logo { background:%7; color:white; border-radius:9px; font-size:24px; font-weight:700; }
-      QLabel#brand { font-size:19px; font-weight:700; }
-      QLabel#muted, QLabel#count, QLabel#version, QLabel#details, QLabel#empty { color:%6; }
-      QLabel#version { font-size:9px; letter-spacing:1px; padding-left:9px; }
-      QLabel#heading { font-size:13px; font-weight:600; }
-      QLabel#count { font-size:11px; }
-      QLabel#details { font-size:11px; }
-      QFrame#sidebar { background:%3; border-right:1px solid %4; }
-      QFrame#main { background:%2; }
-      QFrame#divider { background:%4; border:0; }
-      QPushButton#category { text-align:left; padding-left:11px; border:0; border-radius:8px; background:transparent; color:%6; }
-      QPushButton#category:hover { background:%9; color:%5; }
-      QPushButton#category:checked { background:%8; color:%7; font-weight:600; }
-      QLineEdit#search { background:%3; border:1px solid %4; border-radius:10px; padding:0 12px; selection-background-color:%7; }
-      QLineEdit#search:focus { border:1px solid %7; }
-      QListView#grid { background:transparent; border:0; outline:0; }
+      QLabel#heading, QLabel#muted, QLabel#empty { color:%6; }
+      QLabel#heading { font-size:11px; }
+      QLabel#collected { font-size:19px; }
+      QLineEdit#search { background:%3; color:%5; placeholder-text-color:%6; border:1px solid transparent; border-radius:7px; padding:0 10px; selection-background-color:%7; }
+      QLineEdit#search:focus { border-color:%4; }
+      QListView#grid { background:%2; border:0; outline:0; }
       QListView#grid::item { border:0; }
-      QScrollBar:vertical { background:transparent; width:6px; margin:2px 0; }
-      QScrollBar::handle:vertical { background:%4; border-radius:3px; min-height:28px; }
+      QFrame#categories { border-top:1px solid %4; }
+      QPushButton#category { background:transparent; border:0; border-bottom:2px solid transparent; border-radius:0; }
+      QPushButton#category:hover { background:%9; border-radius:5px; }
+      QPushButton#category:checked { border-bottom-color:%7; }
+      QToolButton { background:transparent; border:0; border-radius:5px; padding:3px; color:%6; }
+      QToolButton:hover { background:%9; color:%5; }
+      QToolButton:checked { background:%8; color:%7; }
+      QToolButton#settingsButton { font-size:19px; font-weight:600; }
+      QToolButton#skinButton { font-family:"Noto Color Emoji"; font-size:17px; padding:0; }
+      QFrame#options, QFrame#collection { background:%3; border:0; border-radius:7px; }
+      QCheckBox { spacing:6px; font-size:11px; }
+      QCheckBox::indicator { width:12px; height:12px; border:1px solid %6; border-radius:3px; background:%1; }
+      QCheckBox::indicator:checked { background:%7; border-color:%7; image:none; }
+      QPushButton#insert { background:%7; color:white; border:0; border-radius:5px; padding:0 9px; font-size:11px; }
+      QScrollBar:vertical { background:transparent; width:5px; margin:2px 0; }
+      QScrollBar::handle:vertical { background:%4; border-radius:2px; min-height:24px; }
       QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height:0; }
       QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical { background:transparent; }
-      QFrame#collection { background:%3; border:1px solid %4; border-radius:9px; }
-      QPushButton#insert { background:%7; color:white; border:0; border-radius:7px; padding:0 12px; font-weight:600; }
-      QPushButton#insert:disabled { background:%4; color:%6; }
-      QToolButton { background:transparent; border:0; border-radius:6px; padding:3px; color:%6; }
-      QToolButton:hover { background:%8; color:%7; }
-      QToolButton#theme { font-size:19px; }
-      QFrame#footer { background:%3; border-top:1px solid %4; border-bottom-left-radius:14px; border-bottom-right-radius:14px; }
-      QCheckBox { spacing:6px; color:%6; font-size:11px; }
-      QCheckBox::indicator { width:13px; height:13px; border:1px solid %6; border-radius:4px; background:%2; }
-      QCheckBox::indicator:checked { background:%7; border-color:%7; image:none; }
-      QToolTip { background:%3; color:%5; border:1px solid %4; padding:7px; }
-    )").arg(c.background.name(), c.surface.name(), c.sidebar.name(), c.border.name(), c.text.name(), c.muted.name(), c.accent.name(), c.selected.name(), c.hover.name());
-    setStyleSheet(sheet);
+      QToolTip { background:%3; color:%5; border:1px solid %4; padding:6px; }
+    )").arg(c.background.name(), c.surface.name(), c.sidebar.name(), c.border.name(), c.text.name(), c.muted.name(), c.accent.name(), c.selected.name(), c.hover.name()));
     delegate_->colors = colors_;
+    auto palette = search_->palette();
+    palette.setColor(QPalette::Text, c.text);
+    palette.setColor(QPalette::PlaceholderText, c.muted);
+    search_->setPalette(palette);
     for (int i = 0; i < toneButtons_.size(); ++i) {
-        toneButtons_[i]->setStyleSheet(QString("QToolButton { background:%1; border:3px solid %2; border-radius:9px; padding:0; } QToolButton:checked { border-color:%3; }").arg(toneColors[i], colors_.surface.name(), colors_.accent.name()));
+        toneButtons_[i]->setStyleSheet(QString("QToolButton { background:%1; border:4px solid %2; border-radius:12px; padding:0; } QToolButton:checked { border-color:%3; }").arg(toneColors[i], colors_.sidebar.name(), colors_.accent.name()));
     }
+    for (int i = 0; i < categoryButtons_.size(); ++i) {
+        QIcon icon;
+        icon.addPixmap(categoryIcon(i, c.muted), QIcon::Normal, QIcon::Off);
+        icon.addPixmap(categoryIcon(i, c.accent), QIcon::Normal, QIcon::On);
+        icon.addPixmap(categoryIcon(i, c.text), QIcon::Active, QIcon::Off);
+        icon.addPixmap(categoryIcon(i, c.accent), QIcon::Active, QIcon::On);
+        categoryButtons_[i]->setIcon(icon);
+    }
+    auto *theme = findChild<QToolButton *>("theme");
+    theme->setText("外观 · " + (theme_ == "system" ? QString("跟随系统") : theme_ == "dark" ? QString("深色") : QString("浅色")));
     grid_->viewport()->update();
 }
 
@@ -282,24 +383,17 @@ void Picker::selectCategory(int index) {
 void Picker::selectTone(int tone) {
     model_.tone = tone; settings_.setValue("tone", tone);
     for (int i = 0; i < toneButtons_.size(); ++i) toneButtons_[i]->setChecked(i == tone);
-    grid_->viewport()->update(); updateDetails();
+    const QStringList hands = {"✋", "✋🏻", "✋🏼", "✋🏽", "✋🏾", "✋🏿"};
+    skinButton_->setText(hands[tone]);
+    grid_->viewport()->update();
 }
 void Picker::refresh() {
     debounce_.stop(); model_.query = search_->text(); model_.refresh();
     heading_->setText(search_->text().isEmpty() ? navNames[navIndex_] : "搜索结果");
-    count_->setText(QString::number(model_.rowCount())+" 个");
     grid_->setCurrentIndex(model_.index(0)); grid_->scrollToTop();
     empty_->setGeometry(grid_->viewport()->rect().adjusted(25, 0, -25, 0));
     empty_->setText(!search_->text().isEmpty() ? "没有找到对应的表情\n试试其他关键词，或切换到全部表情" : navIndex_ == 1 ? "把喜欢的表情收在这里\n右键点击任意表情即可收藏" : "这里还没有最近使用的表情\n选一个表情，开始表达吧");
     empty_->setVisible(model_.visible.isEmpty());
-    updateDetails();
-}
-void Picker::updateDetails() {
-    const auto *e = model_.entry(grid_->currentIndex().row());
-    if (!e) { details_->setText(" "); return; }
-    const QString description = e->name+"  ·  "+e->english;
-    details_->setToolTip(description);
-    details_->setText(details_->fontMetrics().elidedText(description, Qt::ElideRight, 450));
 }
 void Picker::toggleFavorite(int row) {
     const auto *e = model_.entry(row); if (!e) return;
@@ -328,7 +422,7 @@ void Picker::commit() {
     }
     while (model_.recents.size() > 80) model_.recents.removeLast();
     saveHistory();
-    if (preview_) status_->setText("预览输入："+text);
+    if (preview_) heading_->setText("已选 " + text);
     else if (session_) send("COMMIT\t"+token_+"\t"+text.toUtf8().toHex()+"\t"+(continuous_->isChecked() ? "keep" : "close"));
     collected_.clear(); updateCollection();
     if (!continuous_->isChecked() && !preview_) { session_ = false; hide(); }
@@ -336,9 +430,9 @@ void Picker::commit() {
 void Picker::updateCollection() {
     QString preview;
     for (const auto &e : collected_) preview += e.second;
-    collectionLabel_->setText(preview.isEmpty() ? QString("Shift 点选，将多个表情组合输入") : collectionLabel_->fontMetrics().elidedText(preview, Qt::ElideRight, 300));
-    insert_->setText(collected_.isEmpty() ? "输入 ↵" : QString("输入 %1 个").arg(collected_.size()));
-    if (auto *clear = findChild<QToolButton *>("clearCollection")) clear->setVisible(!collected_.isEmpty());
+    collectionLabel_->setText(collectionLabel_->fontMetrics().elidedText(preview, Qt::ElideRight, 230));
+    insert_->setText(QString("输入 %1 个").arg(collected_.size()));
+    collectionPanel_->setVisible(!collected_.isEmpty());
 }
 void Picker::moveSelection(int delta) {
     if (model_.visible.isEmpty()) return;
@@ -416,6 +510,8 @@ void Picker::send(const QByteArray &line) { socket_.write(line+'\n'); socket_.fl
 void Picker::setPreviewQuery(const QString &query) { search_->setText(query); refresh(); if (preview_) search_->setFocus(); }
 void Picker::openSession(const QByteArray &token) {
     token_ = token; session_ = true; shiftHeld_ = false; collected_.clear(); search_->clear(); selectCategory(2); updateCollection();
+    findChild<QToolButton *>("settingsButton")->setChecked(false);
+    skinButton_->setChecked(false);
     // KWin positions Wayland windows. X11 previews can be centered directly.
     if (auto *screen = QGuiApplication::primaryScreen()) move(screen->availableGeometry().center()-rect().center());
     show();

@@ -14,6 +14,7 @@ class QLabel;
 class QPushButton;
 class QCheckBox;
 class QToolButton;
+class QFrame;
 
 struct Emoji {
     QString text, name, english, search;
@@ -46,7 +47,7 @@ class EmojiDelegate : public QStyledItemDelegate {
 public:
     explicit EmojiDelegate(EmojiModel *model, QObject *parent = nullptr) : QStyledItemDelegate(parent), model_(model) {}
     void paint(QPainter *, const QStyleOptionViewItem &, const QModelIndex &) const override;
-    QSize sizeHint(const QStyleOptionViewItem &, const QModelIndex &) const override { return {52, 52}; }
+    QSize sizeHint(const QStyleOptionViewItem &, const QModelIndex &) const override { return {42, 42}; }
     Colors colors;
 private:
     EmojiModel *model_;
@@ -80,12 +81,13 @@ private:
     void receive(const QByteArray &line);
     void send(const QByteArray &line);
     void openSession(const QByteArray &token);
-    void updateDetails();
     EmojiModel model_;
     EmojiDelegate *delegate_ = nullptr;
     QListView *grid_ = nullptr;
     QLineEdit *search_ = nullptr;
-    QLabel *heading_, *count_, *details_, *empty_, *collectionLabel_, *status_;
+    QLabel *heading_, *empty_, *collectionLabel_;
+    QFrame *settingsPanel_, *tonePanel_, *collectionPanel_;
+    QToolButton *skinButton_;
     QPushButton *insert_;
     QCheckBox *continuous_;
     QList<QPushButton *> categoryButtons_;
