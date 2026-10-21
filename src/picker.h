@@ -40,13 +40,14 @@ public:
     const Emoji *entry(int row) const;
     bool favorite(int row) const;
     QString displayName(const Emoji &e) const;
-    QString alternateName(const Emoji &e) const;
+    QStringList hoverNames(const Emoji &e) const;
     QList<Emoji> entries;
     QList<int> visible;
     QStringList favorites, recents;
     int category = -1, tone = 0;
     QString query;
     bool symbols = false, englishUi = false, searchChinese = true, searchPinyin = true;
+    QStringList hoverLanguages;
 };
 
 class EmojiDelegate : public QStyledItemDelegate {
@@ -63,7 +64,7 @@ class Picker : public QWidget {
     Q_OBJECT
 public:
     explicit Picker(const QString &dataPath, bool preview = false, const QStringList &searchLanguages = {},
-                    const QString &theme = {}, const QString &accent = {});
+                    const QString &theme = {}, const QString &accent = {}, const QStringList &hoverLanguages = {});
     void connectToAddon(const QString &path);
     bool catalogueLoaded() const { return !model_.entries.isEmpty(); }
     void setPreviewQuery(const QString &query);

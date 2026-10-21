@@ -48,3 +48,6 @@ msgstr "深色"
 
 msgid "Accent color"
 msgstr "强调色"
+
+msgid "Hover languages (UI language always shown)"
+msgstr "悬停显示语言（始终包含界面语言）"

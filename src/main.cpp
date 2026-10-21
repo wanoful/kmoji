@@ -56,6 +56,8 @@ int main(int argc, char **argv) {
         {"lang", QCoreApplication::translate("Main", "Override the UI language"), "code"},
         {"theme", QCoreApplication::translate("Main", "Override the UI theme (system, light, dark)"), "name"},
         {"accent", QCoreApplication::translate("Main", "Override the accent color"), "color"},
+        {"hover-langs", QCoreApplication::translate("Main",
+            "Languages shown in the hover label (comma-separated: en, zh)"), "list"},
         {"search-langs", QCoreApplication::translate("Main",
             "Additional emoji search languages (comma-separated: zh, pinyin)"), "list"}});
     parser.process(app);
@@ -69,8 +71,11 @@ int main(int argc, char **argv) {
     QStringList searchLanguages;
     if (parser.isSet("search-langs"))
         searchLanguages = parser.value("search-langs").split(',', Qt::SkipEmptyParts);
+    QStringList hoverLanguages;
+    if (parser.isSet("hover-langs"))
+        hoverLanguages = parser.value("hover-langs").split(',', Qt::SkipEmptyParts);
     Picker picker(dataPath, preview, searchLanguages,
-                  parser.value("theme"), parser.value("accent"));
+                  parser.value("theme"), parser.value("accent"), hoverLanguages);
     if (!picker.catalogueLoaded()) {
         qCritical("%s", qPrintable(QCoreApplication::translate("Main", "Cannot load the emoji catalogue: %1").arg(dataPath)));
         return 1;

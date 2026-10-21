@@ -141,10 +141,7 @@ QVariant EmojiModel::data(const QModelIndex &index, int role) const {
     auto *e = entry(index.row());
     if (!e) return {};
     if (role == Qt::DisplayRole) return glyph(index.row());
-    if (role == Qt::ToolTipRole) {
-        const auto primary = displayName(*e), alternate = alternateName(*e);
-        return alternate.isEmpty() ? primary : primary+"\n"+alternate;
-    }
+    if (role == Qt::ToolTipRole) return hoverNames(*e).join('\n');
     if (role == Qt::AccessibleTextRole) return displayName(*e);
     return {};
 }
@@ -158,15 +155,22 @@ const Emoji *EmojiModel::entry(int row) const {
 bool EmojiModel::favorite(int row) const {
     auto *e = entry(row); return e && favorites.contains(e->text);
 }
-QString EmojiModel::displayName(const Emoji &e) const {
-    if (!englishUi) return e.name;
+namespace {
+QString englishName(const Emoji &e) {
     if (e.english.isEmpty() || e.english.startsWith("U+")) return e.name;
     return e.english;
 }
-QString EmojiModel::alternateName(const Emoji &e) const {
-    const auto primary = displayName(e);
-    const auto alternate = englishUi ? e.name : e.english;
-    return alternate == primary ? QString{} : alternate;
+}
+QString EmojiModel::displayName(const Emoji &e) const {
+    return englishUi ? englishName(e) : e.name;
+}
+QStringList EmojiModel::hoverNames(const Emoji &e) const {
+    QStringList names;
+    for (const auto &language : hoverLanguages) {
+        const auto name = language == "en" ? englishName(e) : e.name;
+        if (!name.isEmpty() && !names.contains(name)) names.append(name);
+    }
+    return names;
 }
 void EmojiModel::refresh() {
     beginResetModel(); visible.clear();
@@ -234,11 +238,18 @@ void EmojiDelegate::paint(QPainter *p, const QStyleOptionViewItem &opt, const QM
 }
 
 Picker::Picker(const QString &dataPath, bool preview, const QStringList &searchLanguages,
-               const QString &theme, const QString &accent)
+               const QString &theme, const QString &accent, const QStringList &hoverLanguages)
     : QWidget(nullptr), settings_("kmoji", "kmoji"), preview_(preview) {
     theme_ = theme == "light" || theme == "dark" ? theme : "system";
     accent_ = accent;
     model_.englishUi = QCoreApplication::translate("Picker", "Search emoji") == "Search emoji";
+    model_.hoverLanguages = {model_.englishUi ? "en" : "zh"};
+    for (const auto &language : hoverLanguages) {
+        const auto value = language.toLower();
+        const auto code = value == "en" || value == "english" ? "en"
+                        : value == "zh" || value == "chinese" ? "zh" : QString{};
+        if (!code.isEmpty() && !model_.hoverLanguages.contains(code)) model_.hoverLanguages.append(code);
+    }
     if (!searchLanguages.isEmpty()) {
         model_.searchChinese = searchLanguages.contains("zh", Qt::CaseInsensitive)
             || searchLanguages.contains("chinese", Qt::CaseInsensitive);
@@ -647,10 +658,11 @@ void Picker::showHoverName() {
     const auto *e = model_.entry(hoveredRow_);
     if (!e || !isVisible()) return;
     const auto metrics = hoverName_->fontMetrics();
-    const auto primary = model_.displayName(*e), alternate = model_.alternateName(*e);
-    QString text = metrics.elidedText(primary, Qt::ElideRight, 270);
-    if (!alternate.isEmpty()) text += "\n"+metrics.elidedText(alternate, Qt::ElideRight, 270);
-    hoverName_->setText(text);
+    QStringList lines;
+    for (const auto &name : model_.hoverNames(*e))
+        lines.append(metrics.elidedText(name, Qt::ElideRight, 270));
+    if (lines.isEmpty()) return;
+    hoverName_->setText(lines.join('\n'));
     hoverName_->adjustSize();
     const QRect cell = grid_->visualRect(model_.index(hoveredRow_));
     const QPoint top = grid_->viewport()->mapTo(this, cell.topLeft());

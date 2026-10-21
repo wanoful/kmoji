@@ -78,6 +78,15 @@ struct UiThemeI18n {
         config.setValueByPath("EnumI18n/2", fcitx::translateDomain("kmoji", "Dark"));
     }
 };
+FCITX_CONFIG_ENUM(HoverLanguage, English, Chinese);
+struct HoverLanguageI18n {
+    bool skipDescription() const { return false; }
+    bool skipSave() const { return false; }
+    void dumpDescription(fcitx::RawConfig &config) const {
+        config.setValueByPath("EnumI18n/0", fcitx::translateDomain("kmoji", "English"));
+        config.setValueByPath("EnumI18n/1", fcitx::translateDomain("kmoji", "Chinese"));
+    }
+};
 FCITX_CONFIG_ENUM(SearchLanguage, Chinese, Pinyin);
 struct SearchLanguageI18n {
     bool skipDescription() const { return false; }
@@ -92,6 +101,9 @@ using UiLanguageOption = fcitx::Option<UiLanguage, fcitx::NoConstrain<UiLanguage
 using SearchLanguagesOption = fcitx::Option<std::vector<SearchLanguage>,
     fcitx::ListConstrain<fcitx::NoConstrain<SearchLanguage>>,
     fcitx::DefaultMarshaller<std::vector<SearchLanguage>>, SearchLanguageI18n>;
+using HoverLanguagesOption = fcitx::Option<std::vector<HoverLanguage>,
+    fcitx::ListConstrain<fcitx::NoConstrain<HoverLanguage>>,
+    fcitx::DefaultMarshaller<std::vector<HoverLanguage>>, HoverLanguageI18n>;
 using UiThemeOption = fcitx::Option<UiTheme, fcitx::NoConstrain<UiTheme>,
     fcitx::DefaultMarshaller<UiTheme>, UiThemeI18n>;
 using AccentColorOption = fcitx::Option<fcitx::Color, fcitx::NoConstrain<fcitx::Color>,
@@ -106,6 +118,9 @@ FCITX_CONFIGURATION(KmojiConfig,
         fcitx::translateDomain("kmoji", "Accent color"), fcitx::Color("#7763d7")};
     UiLanguageOption language{this, "Language",
         fcitx::translateDomain("kmoji", "UI language"), UiLanguage::Auto};
+    HoverLanguagesOption hoverLanguages{this, "HoverLanguages",
+        fcitx::translateDomain("kmoji", "Hover languages (UI language always shown)"),
+        {HoverLanguage::English, HoverLanguage::Chinese}};
     SearchLanguagesOption searchLanguages{this, "SearchLanguages",
         fcitx::translateDomain("kmoji", "Additional emoji search languages (English always on)"),
         {SearchLanguage::Chinese, SearchLanguage::Pinyin}};
@@ -146,6 +161,11 @@ public:
                     else if (config_.language.value() == UiLanguage::English) args.push_back("--lang=en");
                     if (!themeName().empty()) args.push_back("--theme=" + themeName());
                     args.push_back("--accent=" + accentName());
+                    std::string hoverLanguages;
+                    for (const auto language : config_.hoverLanguages.value())
+                        hoverLanguages += (hoverLanguages.empty() ? "" : ",") +
+                            std::string(language == HoverLanguage::English ? "en" : "zh");
+                    args.push_back("--hover-langs=" + hoverLanguages);
                     std::string searchLanguages = "en";
                     for (const auto language : config_.searchLanguages.value())
                         searchLanguages += language == SearchLanguage::Chinese ? ",zh" : ",pinyin";
