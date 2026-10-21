@@ -31,8 +31,6 @@
 #include <algorithm>
 
 namespace {
-const QStringList navNames = {"最近使用", "我的收藏", "全部表情", "笑脸与情感", "人物与手势", "动物与自然", "食物与饮品", "旅行与地点", "活动与运动", "物品与工具", "符号", "旗帜"};
-const QStringList symbolNames = {"最近使用", "我的收藏", "常用符号", "标点符号", "货币符号", "数学符号", "箭头符号", "几何图形", "字母与数字", "其他符号"};
 const QStringList symbolMarks = {"↺", "♥", "©", "…", "€", "∑", "→", "◇", "①", "☺"};
 const QStringList toneColors = {"#ffd166", "#f8dfc6", "#eac39b", "#c89460", "#966747", "#614337"};
 QPixmap categoryIcon(int category, const QColor &color) {
@@ -203,6 +201,8 @@ void EmojiDelegate::paint(QPainter *p, const QStyleOptionViewItem &opt, const QM
 }
 
 Picker::Picker(const QString &dataPath, bool preview) : QWidget(nullptr), settings_("kmoji", "kmoji"), preview_(preview) {
+    // Keep this title stable: the KWin rule installed by scripts/install.py
+    // matches it to give the panel its popup layer and focus behaviour.
     setWindowTitle("kMoji Emoji Picker");
     setObjectName("picker");
     if (!preview) {
@@ -243,20 +243,20 @@ void Picker::buildUi() {
 
     auto *searchRow = new QHBoxLayout; searchRow->setSpacing(6);
     search_ = new QLineEdit;
-    search_->setPlaceholderText("搜索表情"); search_->setClearButtonEnabled(true);
+    search_->setPlaceholderText(tr("Search emoji")); search_->setClearButtonEnabled(true);
     search_->setFixedHeight(36); search_->setObjectName("search");
-    search_->setAccessibleName("搜索表情，支持英文和拼音");
-    search_->setToolTip("支持英文、拼音，或 Ctrl+V 粘贴中文");
+    search_->setAccessibleName(tr("Search emoji by English or pinyin"));
+    search_->setToolTip(tr("Search by English, pinyin, or paste Chinese with Ctrl+V"));
     search_->installEventFilter(this);
     if (!preview_) search_->setFocusPolicy(Qt::NoFocus);
     searchRow->addWidget(search_, 1);
     auto *settings = new QToolButton;
     settings->setText("···"); settings->setObjectName("settingsButton");
-    settings->setToolTip("更多选项"); settings->setAccessibleName("更多选项");
+    settings->setToolTip(tr("More options")); settings->setAccessibleName(tr("More options"));
     settings->setCheckable(true); settings->setFixedSize(28, 30);
     auto *close = new QToolButton;
     close->setText("×"); close->setFixedSize(24, 30);
-    close->setToolTip("关闭 · Esc"); close->setAccessibleName("关闭");
+    close->setToolTip(tr("Close · Esc")); close->setAccessibleName(tr("Close"));
     connect(close, &QToolButton::clicked, this, &Picker::cancel);
     searchRow->addWidget(settings); searchRow->addWidget(close);
     root->addLayout(searchRow);
@@ -264,13 +264,13 @@ void Picker::buildUi() {
     settingsPanel_ = new QFrame; settingsPanel_->setObjectName("options");
     auto *options = new QHBoxLayout(settingsPanel_);
     options->setContentsMargins(8, 6, 8, 6); options->setSpacing(8);
-    continuous_ = new QCheckBox("连续输入");
+    continuous_ = new QCheckBox(tr("Continuous input"));
     continuous_->setChecked(settings_.value("continuous", false).toBool());
-    continuous_->setToolTip("输入后保留面板，按 Esc 关闭");
+    continuous_->setToolTip(tr("Keep the panel open after inserting"));
     connect(continuous_, &QCheckBox::toggled, this, [this](bool on) { settings_.setValue("continuous", on); });
     options->addWidget(continuous_); options->addStretch();
     auto *theme = new QToolButton; theme->setObjectName("theme");
-    theme->setToolTip("切换外观：跟随系统 / 浅色 / 深色");
+    theme->setToolTip(tr("Appearance: follow system, light, or dark"));
     connect(theme, &QToolButton::clicked, this, [this] {
         theme_ = theme_ == "system" ? "light" : theme_ == "light" ? "dark" : "system";
         settings_.setValue("theme", theme_); applyTheme();
@@ -286,24 +286,26 @@ void Picker::buildUi() {
     modeButton_->setObjectName("modeButton"); modeButton_->setText("Ω");
     modeButton_->setCheckable(true);
     modeButton_->setFixedSize(32, 26); modeButton_->setFocusPolicy(Qt::NoFocus);
-    modeButton_->setToolTip("特殊符号 · Ctrl+Shift+S"); modeButton_->setAccessibleName("特殊符号");
+    modeButton_->setToolTip(tr("Special symbols · Ctrl+Shift+S"));
+    modeButton_->setAccessibleName(tr("Special symbols"));
     connect(modeButton_, &QToolButton::clicked, this, &Picker::toggleSymbols);
     const bool hasSymbols = std::any_of(model_.entries.cbegin(), model_.entries.cend(),
                                         [](const Emoji &entry) { return entry.symbol; });
     modeButton_->setEnabled(hasSymbols);
-    if (!hasSymbols) modeButton_->setToolTip("未找到符号数据");
+    if (!hasSymbols) modeButton_->setToolTip(tr("Symbol data not found"));
     skinButton_ = new QToolButton;
     skinButton_->setObjectName("skinButton"); skinButton_->setFixedSize(28, 26);
-    skinButton_->setCheckable(true); skinButton_->setToolTip("选择肤色");
-    skinButton_->setAccessibleName("选择肤色");
+    skinButton_->setCheckable(true); skinButton_->setToolTip(tr("Choose skin tone"));
+    skinButton_->setAccessibleName(tr("Choose skin tone"));
     section->addWidget(skinButton_); section->addWidget(modeButton_);
     root->addLayout(section);
 
     tonePanel_ = new QFrame; tonePanel_->setObjectName("options");
     auto *tones = new QHBoxLayout(tonePanel_); tones->setContentsMargins(8, 4, 8, 4);
-    auto *toneLabel = new QLabel("肤色"); toneLabel->setObjectName("muted");
+    auto *toneLabel = new QLabel(tr("Skin tone")); toneLabel->setObjectName("muted");
     tones->addWidget(toneLabel); tones->addStretch();
-    const QStringList toneNames = {"默认", "浅色", "较浅", "中等", "较深", "深色"};
+    const QStringList toneNames = {tr("Default"), tr("Light"), tr("Slightly light"), tr("Medium"),
+                                   tr("Slightly dark"), tr("Dark")};
     for (int i = 0; i < 6; ++i) {
         auto *tone = new QToolButton;
         tone->setFixedSize(24, 24); tone->setObjectName("tone"); tone->setCheckable(true);
@@ -339,7 +341,7 @@ void Picker::buildUi() {
     collectionLabel_ = new QLabel; collectionLabel_->setObjectName("collected");
     collection->addWidget(collectionLabel_, 1);
     auto *clear = new QToolButton;
-    clear->setText("×"); clear->setObjectName("clearCollection"); clear->setToolTip("清空组合");
+    clear->setText("×"); clear->setObjectName("clearCollection"); clear->setToolTip(tr("Clear selection"));
     connect(clear, &QToolButton::clicked, this, [this] { collected_.clear(); updateCollection(); });
     collection->addWidget(clear);
     insert_ = new QPushButton; insert_->setObjectName("insert"); insert_->setFixedHeight(27);
@@ -350,21 +352,23 @@ void Picker::buildUi() {
     auto *nav = new QHBoxLayout(categories);
     nav->setContentsMargins(0, 5, 0, 0); nav->setSpacing(1);
     nav->addStretch(1);
-    for (int i = 0; i < navNames.size(); ++i) {
+    const auto categoryLabels = categoryNames();
+    for (int i = 0; i < categoryLabels.size(); ++i) {
         auto *button = new QPushButton;
         button->setObjectName("category"); button->setCheckable(true);
         button->setFixedSize(28, 30); button->setIconSize({18, 18});
-        button->setToolTip(navNames[i]); button->setAccessibleName(navNames[i]);
+        button->setToolTip(categoryLabels[i]); button->setAccessibleName(categoryLabels[i]);
         button->setFocusPolicy(Qt::NoFocus);
         categoryButtons_.append(button); nav->addWidget(button);
         connect(button, &QPushButton::clicked, this, [this, i] { selectCategory(i); });
     }
-    for (int i = 0; i < symbolNames.size(); ++i) {
+    const auto symbolLabels = symbolCategoryNames();
+    for (int i = 0; i < symbolLabels.size(); ++i) {
         auto *button = new QPushButton(symbolMarks[i]);
         button->setObjectName("category"); button->setCheckable(true);
         button->setProperty("symbolNav", true);
         button->setFixedSize(34, 30);
-        button->setToolTip(symbolNames[i]); button->setAccessibleName(symbolNames[i]);
+        button->setToolTip(symbolLabels[i]); button->setAccessibleName(symbolLabels[i]);
         button->setFocusPolicy(Qt::NoFocus); button->hide();
         symbolButtons_.append(button); nav->addWidget(button);
         connect(button, &QPushButton::clicked, this, [this, i] { selectCategory(i); });
@@ -434,17 +438,29 @@ void Picker::applyTheme() {
         categoryButtons_[i]->setIcon(icon);
     }
     auto *theme = findChild<QToolButton *>("theme");
-    theme->setText("外观 · " + (theme_ == "system" ? QString("跟随系统") : theme_ == "dark" ? QString("深色") : QString("浅色")));
+    const auto themeName = theme_ == "system" ? tr("Follow system") : theme_ == "dark" ? tr("Dark") : tr("Light");
+    theme->setText(tr("Appearance · %1").arg(themeName));
     grid_->viewport()->update();
 }
 
+QStringList Picker::categoryNames() const {
+    return {tr("Recent"), tr("Favorites"), tr("All emoji"), tr("Smileys & Emotion"),
+            tr("People & Body"), tr("Animals & Nature"), tr("Food & Drink"), tr("Travel & Places"),
+            tr("Activities"), tr("Objects"), tr("Symbols"), tr("Flags")};
+}
+QStringList Picker::symbolCategoryNames() const {
+    return {tr("Recent"), tr("Favorites"), tr("Common"), tr("Punctuation"), tr("Currency"),
+            tr("Math"), tr("Arrows"), tr("Shapes"), tr("Letters & Numbers"), tr("Other")};
+}
 void Picker::selectCategory(int index) {
     if (symbols_) {
-        navIndex_ = (index+symbolNames.size()) % symbolNames.size();
+        const auto names = symbolCategoryNames();
+        navIndex_ = (index+names.size()) % names.size();
         for (int i = 0; i < symbolButtons_.size(); ++i) symbolButtons_[i]->setChecked(i == navIndex_);
         model_.category = navIndex_ == 0 ? -2 : navIndex_ == 1 ? -3 : navIndex_-2;
     } else {
-        navIndex_ = (index+navNames.size()) % navNames.size();
+        const auto names = categoryNames();
+        navIndex_ = (index+names.size()) % names.size();
         for (int i = 0; i < categoryButtons_.size(); ++i) categoryButtons_[i]->setChecked(i == navIndex_);
         model_.category = navIndex_ == 0 ? -2 : navIndex_ == 1 ? -3 : navIndex_ == 2 ? -1 : navIndex_-3;
     }
@@ -453,16 +469,18 @@ void Picker::selectCategory(int index) {
 void Picker::setSymbolMode(bool symbols) {
     symbols_ = symbols; model_.symbols = symbols;
     modeButton_->setChecked(symbols);
-    modeButton_->setToolTip(symbols ? "返回表情 · Ctrl+Shift+S" : "特殊符号 · Ctrl+Shift+S");
-    modeButton_->setAccessibleName(symbols ? "返回表情" : "特殊符号");
+    modeButton_->setToolTip(symbols ? tr("Back to emoji · Ctrl+Shift+S") : tr("Special symbols · Ctrl+Shift+S"));
+    modeButton_->setAccessibleName(symbols ? tr("Back to emoji") : tr("Special symbols"));
     skinButton_->setVisible(!symbols);
     if (symbols) { skinButton_->setChecked(false); tonePanel_->hide(); }
     for (auto *button : categoryButtons_) button->setVisible(!symbols);
     for (auto *button : symbolButtons_) button->setVisible(symbols);
     search_->clear();
-    search_->setPlaceholderText(symbols ? "搜索符号" : "搜索表情");
-    search_->setAccessibleName(symbols ? "搜索符号，支持中文、英文或编码" : "搜索表情，支持英文和拼音");
-    search_->setToolTip(symbols ? "支持中文、英文名称或编码，例如“箭头”“2192”" : "支持英文、拼音，或 Ctrl+V 粘贴中文");
+    search_->setPlaceholderText(symbols ? tr("Search symbols") : tr("Search emoji"));
+    search_->setAccessibleName(symbols ? tr("Search symbols by Chinese, English, or code point")
+                                       : tr("Search emoji by English or pinyin"));
+    search_->setToolTip(symbols ? tr("Search by Chinese, English name, or code point, e.g. 2192")
+                                : tr("Search by English, pinyin, or paste Chinese with Ctrl+V"));
     selectCategory(2);
 }
 void Picker::toggleSymbols() { setSymbolMode(!symbols_); }
@@ -476,14 +494,19 @@ void Picker::selectTone(int tone) {
 void Picker::refresh() {
     hideHoverName();
     debounce_.stop(); model_.query = search_->text(); model_.refresh();
-    const auto &names = symbols_ ? symbolNames : navNames;
-    heading_->setText(search_->text().isEmpty() ? names[navIndex_] : "搜索结果");
+    const auto names = symbols_ ? symbolCategoryNames() : categoryNames();
+    heading_->setText(search_->text().isEmpty() ? names[navIndex_] : tr("Search results"));
     grid_->setCurrentIndex(model_.index(0)); grid_->scrollToTop();
     empty_->setGeometry(grid_->viewport()->rect().adjusted(25, 0, -25, 0));
-    if (symbols_) empty_->setText(!search_->text().isEmpty() ? "没有找到对应的符号\n试试“箭头”“货币”“数学”等关键词"
-        : navIndex_ == 0 ? "这里还没有最近使用的符号\n选一个符号，开始使用吧"
-        : navIndex_ == 1 ? "把喜欢的符号收在这里\n右键点击任意符号即可收藏" : "这里还没有可用的符号");
-    else empty_->setText(!search_->text().isEmpty() ? "没有找到对应的表情\n试试其他关键词，或切换到全部表情" : navIndex_ == 1 ? "把喜欢的表情收在这里\n右键点击任意表情即可收藏" : "这里还没有最近使用的表情\n选一个表情，开始表达吧");
+    if (symbols_) empty_->setText(!search_->text().isEmpty()
+        ? tr("No matching symbols\nTry “arrows”, “currency”, or “math”")
+        : navIndex_ == 0 ? tr("No recent symbols yet\nPick a symbol to get started")
+        : navIndex_ == 1 ? tr("Favorite symbols appear here\nRight-click any symbol to add it")
+                         : tr("No symbols available"));
+    else empty_->setText(!search_->text().isEmpty()
+        ? tr("No matching emoji\nTry another keyword, or browse All emoji")
+        : navIndex_ == 1 ? tr("Favorite emoji appear here\nRight-click any emoji to add it")
+                         : tr("No recent emoji yet\nPick one and start expressing"));
     empty_->setVisible(model_.visible.isEmpty());
 }
 void Picker::toggleFavorite(int row) {
@@ -513,7 +536,7 @@ void Picker::commit() {
     }
     while (model_.recents.size() > 80) model_.recents.removeLast();
     saveHistory();
-    if (preview_) heading_->setText("已选 " + text);
+    if (preview_) heading_->setText(tr("Chosen: %1").arg(text));
     else if (session_) send("COMMIT\t"+token_+"\t"+text.toUtf8().toHex()+"\t"+(continuous_->isChecked() ? "keep" : "close"));
     collected_.clear(); updateCollection();
     if (!continuous_->isChecked() && !preview_) { session_ = false; hide(); }
@@ -522,7 +545,8 @@ void Picker::updateCollection() {
     QString preview;
     for (const auto &e : collected_) preview += e.second;
     collectionLabel_->setText(collectionLabel_->fontMetrics().elidedText(preview, Qt::ElideRight, 230));
-    insert_->setText(QString("输入 %1 个").arg(collected_.size()));
+    const int count = collected_.size();
+    insert_->setText(count == 1 ? tr("Insert 1 item") : tr("Insert %1 items").arg(count));
     collectionPanel_->setVisible(!collected_.isEmpty());
 }
 void Picker::moveSelection(int delta) {

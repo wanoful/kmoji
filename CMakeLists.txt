@@ -3,16 +3,30 @@ project(kmoji VERSION 0.1.0 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_AUTOMOC ON)
 include(GNUInstallDirs)
+find_package(Gettext REQUIRED)
 find_package(Fcitx5Core REQUIRED)
 find_package(Fcitx5Config REQUIRED)
-find_package(Qt6 REQUIRED COMPONENTS Widgets Network)
+find_package(Qt6 REQUIRED COMPONENTS Widgets Network LinguistTools)
 add_library(kmoji MODULE src/addon.cpp)
 target_link_libraries(kmoji PRIVATE Fcitx5::Core Fcitx5::Config)
-target_compile_definitions(kmoji PRIVATE KMOJI_UI_PATH="${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR}/kmoji")
+target_compile_definitions(kmoji PRIVATE
+    KMOJI_UI_PATH="${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR}/kmoji"
+    KMOJI_LOCALEDIR="${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LOCALEDIR}")
+set(KMOJI_MO "${CMAKE_CURRENT_BINARY_DIR}/zh_CN.gmo")
+add_custom_command(OUTPUT "${KMOJI_MO}"
+    COMMAND ${GETTEXT_MSGFMT_EXECUTABLE} -o "${KMOJI_MO}" "${CMAKE_CURRENT_SOURCE_DIR}/po/zh_CN.po"
+    DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/po/zh_CN.po"
+    COMMENT "Compiling zh_CN addon translation")
+add_custom_target(kmoji-translations ALL DEPENDS "${KMOJI_MO}")
+add_dependencies(kmoji kmoji-translations)
 add_executable(kmoji-ui src/main.cpp src/picker.cpp src/picker.h)
 set_target_properties(kmoji-ui PROPERTIES OUTPUT_NAME kmoji)
 target_link_libraries(kmoji-ui PRIVATE Qt6::Widgets Qt6::Network)
 target_compile_definitions(kmoji-ui PRIVATE KMOJI_DATA_PATH="${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_DATADIR}/kmoji/emoji.json")
+qt_add_translations(kmoji-ui
+    TS_FILES translations/kmoji_zh_CN.ts
+    RESOURCE_PREFIX "/i18n"
+)
 target_compile_options(kmoji PRIVATE -Wall -Wextra -Wpedantic)
 target_compile_options(kmoji-ui PRIVATE -Wall -Wextra -Wpedantic)
 option(KMOJI_BUILD_DESKTOP_SMOKE "Build an interactive Qt input-method smoke check" OFF)
@@ -28,6 +42,7 @@ install(TARGETS kmoji LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/fcitx5)
 install(TARGETS kmoji-ui RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/kmoji.conf" DESTINATION ${CMAKE_INSTALL_DATADIR}/fcitx5/addon)
 install(FILES data/emoji.json data/symbols.json data/UNICODE-LICENSE.txt DESTINATION ${CMAKE_INSTALL_DATADIR}/kmoji)
+install(FILES "${KMOJI_MO}" DESTINATION ${CMAKE_INSTALL_LOCALEDIR}/zh_CN/LC_MESSAGES RENAME kmoji.mo)
 configure_file(scripts/kmoji-setup.in kmoji-setup @ONLY)
 install(PROGRAMS "${CMAKE_CURRENT_BINARY_DIR}/kmoji-setup" DESTINATION ${CMAKE_INSTALL_BINDIR})
 install(FILES scripts/install.py scripts/restore.py DESTINATION ${CMAKE_INSTALL_DATADIR}/kmoji)

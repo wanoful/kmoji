@@ -1,0 +1,11 @@
+# kMoji Fcitx5 addon strings.
+msgid ""
+msgstr ""
+"Project-Id-Version: kmoji\n"
+"Language: zh_CN\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "Open emoji picker"
+msgstr "打开表情面板"

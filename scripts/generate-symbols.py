@@ -12,6 +12,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 CATEGORIES = ["常用符号", "标点符号", "货币符号", "数学符号", "箭头符号", "几何图形", "字母与数字", "其他符号"]
+CATEGORIES_EN = ["Common", "Punctuation", "Currency", "Math", "Arrows", "Shapes", "Letters & Numbers", "Other"]
 
 # Hand-picked high-frequency symbols, in display order. They also seed the
 # common tab; the ranges below fill the remaining tabs.
@@ -329,8 +330,9 @@ def main():
     result = []
     for (cp, entry), pinyin in zip(entries.items(), pinyins):
         category_name = CATEGORIES[entry["category"]]
+        category_name_en = CATEGORIES_EN[entry["category"]]
         text = entry["text"]
-        words = [entry["english"], entry["name"], pinyin, category_name,
+        words = [entry["english"], entry["name"], pinyin, category_name, category_name_en,
                  "symbol 符号", entry["code"], text]
         if entry["keywords"]:
             words.append(entry["keywords"])

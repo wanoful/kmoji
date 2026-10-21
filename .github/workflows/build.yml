@@ -10,7 +10,7 @@ jobs:
     container: archlinux:base-devel
     steps:
       - name: Install dependencies
-        run: pacman -Syu --noconfirm --needed git cmake ninja fcitx5 qt6-base python python-gobject dbus
+        run: pacman -Syu --noconfirm --needed git cmake ninja fcitx5 qt6-base qt6-tools gettext python python-gobject dbus
       - uses: actions/checkout@v4
       - name: Build
         run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr && cmake --build build -j2

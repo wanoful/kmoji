@@ -74,7 +74,8 @@ if not args.configure_only:
              PREFIX / "share/kmoji/emoji.json", PREFIX / "share/kmoji/symbols.json",
              PREFIX / "share/kmoji/UNICODE-LICENSE.txt",
              PREFIX / "bin/kmoji-setup", PREFIX / "share/kmoji/install.py", PREFIX / "share/kmoji/restore.py",
-             PREFIX / "share/licenses/kmoji/LICENSE", PREFIX / "share/licenses/kmoji/UNICODE-LICENSE.txt"]
+             PREFIX / "share/licenses/kmoji/LICENSE", PREFIX / "share/licenses/kmoji/UNICODE-LICENSE.txt",
+             PREFIX / "share/locale/zh_CN/LC_MESSAGES/kmoji.mo"]
 paths = files + [CONFIG / "kwinrulesrc", CONFIG / "fcitx5/config", CONFIG / "fcitx5/conf/kmoji.conf"]
 if args.activate:
     run("qdbus6", "org.fcitx.Fcitx5", "/controller", "org.fcitx.Fcitx.Controller1.Save")

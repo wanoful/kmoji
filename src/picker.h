@@ -71,6 +71,8 @@ protected:
 private:
     void buildUi();
     void applyTheme();
+    QStringList categoryNames() const;
+    QStringList symbolCategoryNames() const;
     void refresh();
     void selectCategory(int index);
     void toggleSymbols();

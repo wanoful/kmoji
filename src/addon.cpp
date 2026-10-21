@@ -9,6 +9,7 @@
 #include <fcitx/instance.h>
 #include <fcitx-config/iniparser.h>
 #include <fcitx-utils/event.h>
+#include <fcitx-utils/i18n.h>
 #include <fcitx-utils/key.h>
 #include <fcitx-utils/log.h>
 #include <fcitx-utils/misc.h>
@@ -56,13 +57,15 @@ std::vector<std::string> split(const std::string &s) {
 }
 
 FCITX_CONFIGURATION(KmojiConfig,
-    fcitx::KeyListOption triggerKey{this, "TriggerKey", "Open emoji picker",
+    fcitx::KeyListOption triggerKey{this, "TriggerKey",
+        fcitx::translateDomain("kmoji", "Open emoji picker"),
         {fcitx::Key("Super+period"), fcitx::Key("Control+Alt+period")}, fcitx::KeyListConstrain()};
 );
 
 class Kmoji : public fcitx::AddonInstance {
 public:
     explicit Kmoji(fcitx::Instance *instance) : instance_(instance) {
+        fcitx::registerDomain("kmoji", KMOJI_LOCALEDIR);
         reloadConfig();
         handlers_.push_back(instance_->watchEvent(fcitx::EventType::InputContextKeyEvent,
             fcitx::EventWatcherPhase::PreInputMethod, [this](fcitx::Event &ev) {

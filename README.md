@@ -18,6 +18,7 @@
 - 中文、英文、无声调拼音搜索；支持粘贴关键词，符号还可按 `U+` 编码检索。
 - 六种肤色选择、多个 emoji 组合、连续输入。
 - 跟随系统 / 浅色 / 深色外观。
+- 界面文案随系统语言切换，内置英文源字符串和中文翻译。
 - 鼠标悬停约半秒显示表情或符号的中英文名称，移开或滚动时自动隐藏。
 - 收藏、最近使用、肤色和外观保存在 `~/.config/kmoji/kmoji.conf`。
 - 焦点切换后取消输入会话；密码和敏感输入框不触发面板。
@@ -53,8 +54,8 @@
 
 ## 构建与预览
 
-依赖：C++20、CMake、Ninja、Fcitx5 开发文件、Qt 6 Widgets/Network、彩色 emoji 字体。
-Arch 的包为 `base-devel cmake ninja fcitx5 qt6-base qt6-wayland noto-fonts-emoji`。
+依赖：C++20、CMake、Ninja、Fcitx5 开发文件、Qt 6 Widgets/Network、Qt LinguistTools、gettext、彩色 emoji 字体。
+Arch 的包为 `base-devel cmake ninja fcitx5 qt6-base qt6-tools gettext qt6-wayland noto-fonts-emoji`。
 
 ```sh
 cmake -S . -B build -G Ninja \
@@ -120,7 +121,7 @@ python tests/integration.py
 测试启动私有 D-Bus 和 Fcitx5，使用离屏 Qt 界面，不操作当前桌面输入法。
 覆盖直接提交、ZWJ / 肤色序列、连续输入、失焦与销毁后拒绝提交、敏感输入框、
 过期会话、英文 / 中文 / 拼音搜索、分类浏览、多表情组合、收藏与历史持久化，
-以及符号目录、符号模式和 `U+` 编码搜索。
+符号目录、符号模式和 `U+` 编码搜索，以及中文翻译加载和英文回退。
 
 安装后，在桌面终端运行真实 Qt 文本框测试（额外需要 Qt Gui 私有开发头文件）：
 
@@ -139,6 +140,30 @@ QT_IM_MODULE=fcitx ./build/kmoji-desktop-smoke
 QT_QPA_PLATFORM=offscreen ./build/kmoji --screenshot /tmp/kmoji.png
 ```
 
+## 翻译
+
+界面源字符串为英文。Qt 界面的中文翻译保存在 `translations/kmoji_zh_CN.ts`，构建时
+由 Qt LinguistTools 的 `lrelease` 编译为 `.qm` 并嵌入 `kmoji` 可执行文件，运行时按
+系统语言自动加载；没有对应翻译时回退到英文，不需要安装额外的运行时文件。
+
+Fcitx5 附加组件的配置项使用 gettext，中文翻译在 `po/zh_CN.po`，构建时由 `msgfmt`
+编译并安装到 `share/locale`。附加组件的显示名称和说明则由 `data/kmoji.conf` 的
+`Name[zh_CN]` / `Comment` 提供。
+
+修改界面文案后重新提取字符串：
+
+```sh
+cmake --build build --target update_translations
+# 或直接运行
+/usr/lib/qt6/bin/lupdate src -ts translations/kmoji_zh_CN.ts -no-obsolete
+```
+
+用 Qt Linguist 或任意文本编辑器补全翻译，再正常构建即可。新增界面语言时新建
+`translations/kmoji_XX.ts`，并把它加入 `CMakeLists.txt` 的 `TS_FILES`；新增附加组件
+语言时在 `po/` 下添加对应 `.po` 并安装到相应 locale 目录。
+构建依赖 `qt6-tools`（提供 `lupdate` / `lrelease`）和 `gettext`（提供 `msgfmt`），
+运行时不依赖它们。
+
 ## 结构与边界
 
 - `src/addon.cpp`：Fcitx5 原生模块，在输入法事件循环中处理键盘和 `commitString()`。
@@ -152,6 +177,8 @@ QT_QPA_PLATFORM=offscreen ./build/kmoji --screenshot /tmp/kmoji.png
 - `scripts/generate-symbols.py`：从本机 `unicodedata` 和固定的 Unicode 区块生成
   `data/symbols.json`，补充中文名、英文名、拼音与编码索引；不联网。
 - `data/symbols.json`：特殊符号目录，与 emoji 共用提交、收藏和搜索逻辑。
+- `translations/`：Qt 翻译源文件；`.ts` 提交到仓库，`.qm` 在构建时生成并嵌入。
+- `po/`：Fcitx5 附加组件的 gettext 翻译源文件。
 
 首版面向 KDE Plasma 6 / Wayland，其他桌面未验证。目标应用需正确接入 Fcitx5。
 面板打开时键盘用于搜索和选择，拼音不会转换成汉字；可以直接用拼音、英文或粘贴中文搜索。
