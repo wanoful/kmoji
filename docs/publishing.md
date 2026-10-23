@@ -1,49 +1,47 @@
-# 发布与 AUR 维护
+# Publishing & AUR Maintenance
 
-源码：https://github.com/wanoful/kmoji
+Source repository: https://github.com/wanoful/kmoji
 
-## 发布新版本
+## Releasing a New Version
 
-1. 同步修改 `CMakeLists.txt` 和 `data/kmoji.conf` 中的版本号。
-2. 构建并执行 `python tests/integration.py`，提交变更。
-3. 创建版本标签（例如 `v0.1.0`）并推送到 GitHub，再创建对应 Release。
-4. 使用下面的脚本生成 AUR 文件并构建包，将包和校验文件上传至 Release。
+1. Update the version number in both `CMakeLists.txt` and `data/kmoji.conf`.
+2. Build and run `python tests/integration.py`, then commit the changes.
+3. Create a version tag (e.g. `v0.1.0`), push it to GitHub, and create the corresponding GitHub Release.
+4. Generate the AUR files and build the package using the script below, then upload the package and checksum files to the Release.
 
-版本标签发布后不要移动，否则源码归档的校验值会改变。
-首版二进制在 Arch Linux x86_64 上构建；其他架构尚未验证。
+Do not move a version tag once published, as doing so changes the checksum of the source archive.
+Initial release binaries are built on Arch Linux `x86_64`; other architectures have not been tested yet.
 
-## 首次提交 AUR
+## Initial AUR Submission
 
-AUR 保存 `PKGBUILD` 和 `.SRCINFO`，不上传源码或二进制包。
-先注册 [AUR 账号](https://aur.archlinux.org/register)，在账号设置中添加 SSH 公钥。
-认证和提交规则见 [ArchWiki](https://wiki.archlinux.org/title/AUR_submission_guidelines)。
+The AUR repository stores only `PKGBUILD` and `.SRCINFO`—do not upload source archives or binary packages.
+First, register an [AUR account](https://aur.archlinux.org/register) and add your SSH public key in account settings.
+See the [ArchWiki AUR submission guidelines](https://wiki.archlinux.org/title/AUR_submission_guidelines) for authentication and packaging rules.
 
 ```sh
-# 在 kMoji 源码目录中运行；AUR 仓库与源码仓库分开
+# Run from the kMoji source directory; the AUR repo is kept separate from the source repo
 git -c init.defaultBranch=master clone ssh://aur@aur.archlinux.org/kmoji.git ../kmoji-aur
 python packaging/prepare-aur.py 0.1.0 ../kmoji-aur
 cd ../kmoji-aur
 makepkg -s
-# 可选但推荐：安装 namcap 后检查 PKGBUILD 和成品包
+# Optional but recommended: check PKGBUILD and the built package with namcap
 namcap PKGBUILD kmoji-0.1.0-1-x86_64.pkg.tar.zst
 git add PKGBUILD .SRCINFO
 git commit -m 'Initial release: kmoji 0.1.0'
 git push -u origin master
 ```
 
-首次推送前确认包名尚未被占用，并检查生成的文件。不要把 `src/`、`pkg/`、源码归档
-或 `.pkg.tar.zst` 提交到 AUR。软件包安装后，用户在 KDE 会话中运行 `kmoji-setup` 启用。
+Before pushing for the first time, verify that the package name is available and inspect the generated files. Never commit `src/`, `pkg/`, source tarballs, or `.pkg.tar.zst` archives to the AUR. After installing the package, users run `kmoji-setup` inside their KDE session to enable it.
 
-## 更新 AUR
+## Updating the AUR Package
 
-先发布新的 GitHub 标签，再拉取 AUR 仓库，重新运行 `prepare-aur.py`，构建验证后提交
-`PKGBUILD` 和 `.SRCINFO`。只修改打包方式时增加 `pkgrel`，无需发布新上游版本。
-脚本生成文件时会将 `pkgrel` 重置为 1；维护已有版本的打包修订时请手动调整。
+Publish the new GitHub tag first, pull the AUR repository, re-run `prepare-aur.py`, build and verify the package, and then commit `PKGBUILD` and `.SRCINFO`. If you are only updating packaging without a new upstream release, increment `pkgrel` instead.
+Note that `prepare-aur.py` resets `pkgrel` to `1` when generating files; adjust `pkgrel` manually when making packaging-only revisions to an existing upstream version.
 
-已有可发布版本但尚未配置 AUR 账号时，也可以先生成到普通目录：
+If you have a release ready but have not set up your AUR SSH access yet, you can generate the files into a regular directory first:
 
 ```sh
 python packaging/prepare-aur.py 0.1.0 ../kmoji-aur
 ```
 
-完成 SSH 配置后，再将这两个文件复制到正式 AUR checkout 提交。
+Once SSH access is configured, copy `PKGBUILD` and `.SRCINFO` into your official AUR checkout and commit them.
